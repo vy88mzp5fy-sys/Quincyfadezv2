@@ -19,7 +19,7 @@ function App() {
     if (reduce) return;
 
     const lenis = new Lenis({
-      duration: 1.15,
+      duration: 1.05,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
     });
@@ -38,7 +38,7 @@ function App() {
       const el = id === "#top" ? document.body : document.querySelector(id);
       if (el) {
         e.preventDefault();
-        lenis.scrollTo(el, { offset: id === "#top" ? -1000 : -20 });
+        lenis.scrollTo(el, { offset: id === "#top" ? -1000 : -72 });
       }
     };
     document.addEventListener("click", onClick);
@@ -58,9 +58,9 @@ function App() {
         <HeroSection />
         <TrustStrip />
         <EditorialMarquee />
-        <AboutManifesto />
         <WorkGallery />
         <ServicesMenu />
+        <AboutManifesto />
         <HoursAndLocation />
         <BookingCTA />
       </main>

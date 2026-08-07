@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowDownRight, Sparkles } from "lucide-react";
 import { RevealText, BookButton } from "@/components/site/primitives";
 import { GALLERY } from "@/data/site";
@@ -8,6 +8,7 @@ const EASE = [0.16, 1, 0.3, 1];
 
 export const HeroSection = () => {
   const ref = useRef(null);
+  const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end start"],
@@ -24,15 +25,18 @@ export const HeroSection = () => {
       data-testid="hero-section"
       className="qf-ambient relative min-h-[100svh] w-full overflow-hidden"
     >
-      <motion.div style={{ y: mediaY, scale: mediaScale }} className="absolute inset-0">
+      <motion.div
+        style={reduceMotion ? undefined : { y: mediaY, scale: mediaScale }}
+        className="absolute inset-0"
+      >
         <video
-          autoPlay
+          autoPlay={!reduceMotion}
           muted
           loop
           playsInline
           poster={GALLERY[0].thumb}
           preload="metadata"
-          aria-label="QuincyFadez Barbering Work"
+          aria-hidden="true"
           className="h-full w-full object-cover object-center"
         >
           <source src={GALLERY[0].video} type="video/mp4" />
@@ -46,45 +50,45 @@ export const HeroSection = () => {
 
       <motion.div
         aria-hidden="true"
-        initial={{ opacity: 0 }}
+        initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1.4, delay: 0.35 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 1.4, delay: 0.35 }}
         className="pointer-events-none absolute left-[8%] top-[18%] z-[5] h-56 w-56 rounded-full bg-blue-500/10 blur-3xl md:h-80 md:w-80"
       />
       <motion.div
         aria-hidden="true"
-        initial={{ opacity: 0 }}
+        initial={reduceMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1.4, delay: 0.55 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 1.4, delay: 0.55 }}
         className="pointer-events-none absolute right-[4%] top-[22%] z-[5] h-48 w-48 rounded-full bg-violet-500/10 blur-3xl md:h-72 md:w-72"
       />
 
       <motion.div
-        style={{ y: textY, opacity: fade }}
+        style={reduceMotion ? undefined : { y: textY, opacity: fade }}
         className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1400px] flex-col justify-end px-5 pb-16 pt-32 md:px-10 md:pb-24"
       >
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.85, ease: EASE, delay: 0.12 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.85, ease: EASE, delay: 0.12 }}
           className="mb-6 inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-black/25 px-4 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-zinc-200 backdrop-blur-md md:mb-8 md:text-[10px]"
         >
           <Sparkles size={12} className="qf-gold" />
           Premium Barbering In Oxford
         </motion.div>
 
-        <h1 className="max-w-6xl font-serif text-[16.5vw] leading-[0.82] tracking-[-0.065em] text-white md:text-[9.4vw]">
+        <h1 className="max-w-6xl font-serif text-[clamp(4.15rem,16.5vw,7.75rem)] leading-[0.82] tracking-[-0.06em] text-white md:text-[clamp(5.5rem,9.4vw,9.5rem)]">
           <RevealText
             lines={["Precision In", "Every Detail."]}
             italicIdx={[1]}
-            delay={0.24}
+            delay={reduceMotion ? 0 : 0.24}
           />
         </h1>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.95, ease: EASE, delay: 0.9 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.95, ease: EASE, delay: 0.9 }}
           className="mt-8 flex flex-col gap-7 md:mt-10 md:flex-row md:items-end md:justify-between"
         >
           <div className="max-w-xl">
@@ -103,12 +107,12 @@ export const HeroSection = () => {
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
-            <BookButton className="qf-gold-button" testid="hero-book-btn">
+            <BookButton className="qf-gold-button w-full sm:w-auto" testid="hero-book-btn">
               Book Your Appointment
             </BookButton>
             <a
               href="#work"
-              className="qf-glass inline-flex items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10"
+              className="qf-glass inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10 sm:w-auto"
             >
               View My Work
               <ArrowDownRight size={14} />
@@ -119,7 +123,7 @@ export const HeroSection = () => {
 
       <motion.a
         href="#work"
-        style={{ opacity: fade }}
+        style={reduceMotion ? undefined : { opacity: fade }}
         className="absolute bottom-7 left-10 z-10 hidden items-center gap-3 font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-400 md:flex"
       >
         Scroll To Explore

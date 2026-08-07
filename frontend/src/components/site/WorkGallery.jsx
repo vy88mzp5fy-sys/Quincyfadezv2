@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { Instagram, Pause, Play } from "lucide-react";
 import { Label, RevealText } from "@/components/site/primitives";
 import { GALLERY, LINKS } from "@/data/site";
@@ -17,6 +17,7 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
   const ref = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const reduceMotion = useReducedMotion();
 
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -24,7 +25,11 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
   });
 
   const dir = index % 2 === 0 ? 1 : -1;
-  const y = useTransform(scrollYProgress, [0, 1], [`${18 * dir}px`, `${-18 * dir}px`]);
+  const y = useTransform(
+    scrollYProgress,
+    [0, 1],
+    reduceMotion ? ["0px", "0px"] : [`${18 * dir}px`, `${-18 * dir}px`],
+  );
 
   const play = () => {
     const video = videoRef.current;
@@ -47,15 +52,14 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
   return (
     <motion.article
       ref={ref}
-      initial={{ opacity: 0, y: 30 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 30 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-8%" }}
-      transition={{ duration: 0.8, delay: Math.min(index * 0.05, 0.2) }}
-      onMouseEnter={play}
-      onMouseLeave={pause}
-      onClick={toggle}
+      transition={{ duration: reduceMotion ? 0 : 0.8, delay: reduceMotion ? 0 : Math.min(index * 0.05, 0.2) }}
+      onMouseEnter={reduceMotion ? undefined : play}
+      onMouseLeave={reduceMotion ? undefined : pause}
       data-testid={`gallery-tile-${index}`}
-      className={`group relative cursor-pointer overflow-hidden rounded-[1.4rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.28)] ${className}`}
+      className={`group relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-black shadow-[0_24px_80px_rgba(0,0,0,0.28)] ${className}`}
     >
       <motion.div style={{ y, scale: featured ? 1.06 : 1.08 }} className="h-full w-full">
         <video
@@ -65,7 +69,7 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
           loop
           playsInline
           preload="metadata"
-          aria-label={`QuincyFadez Cut ${index + 1}`}
+          aria-hidden="true"
           className="h-full w-full object-cover saturate-[0.86] contrast-[1.04] transition-[filter,transform] duration-700 ease-out group-hover:saturate-110"
         >
           <source src={item.video} type="video/mp4" />
@@ -84,11 +88,17 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
             {STYLE_LABELS[index] || "QuincyFadez Cut"}
           </p>
         </div>
-
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-md transition-all duration-300 group-hover:border-[#d6bd7a]/60 group-hover:bg-[#d6bd7a] group-hover:text-black">
-          {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5 fill-current" />}
-        </span>
       </div>
+
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={`${playing ? "Pause" : "Play"} ${STYLE_LABELS[index] || `QuincyFadez Cut ${index + 1}`}`}
+        aria-pressed={playing}
+        className="absolute bottom-4 right-4 z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/55 text-white backdrop-blur-md transition-all duration-300 hover:border-[var(--qf-gold)]/60 hover:bg-[var(--qf-gold)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-black md:bottom-5 md:right-5"
+      >
+        {playing ? <Pause size={14} /> : <Play size={14} className="ml-0.5 fill-current" />}
+      </button>
     </motion.article>
   );
 };
@@ -107,7 +117,7 @@ export const WorkGallery = () => (
             <RevealText lines={["See The Standard."]} italicIdx={[0]} />
           </h2>
           <p className="mt-5 max-w-lg text-sm font-light leading-7 text-zinc-400 md:text-[15px]">
-            Real Cuts. Real Detail. Tap A Video Or Hover On Desktop To See The Finish In Motion.
+            Real Cuts. Real Detail. Use The Play Button — Or Hover On Desktop — To See The Finish In Motion.
           </p>
         </div>
 

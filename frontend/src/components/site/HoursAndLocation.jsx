@@ -1,10 +1,13 @@
 import { MapPin } from "lucide-react";
 import { Label, RevealText, FadeIn } from "@/components/site/primitives";
 import { OpeningCountdown } from "@/components/site/OpeningCountdown";
-import { HOURS, LINKS, MAP_IMG } from "@/data/site";
+import { HOURS, LINKS } from "@/data/site";
 
 const isOpenToday = (day) =>
   new Date().toLocaleDateString("en-GB", { weekday: "long" }) === day;
+
+const MAP_EMBED =
+  "https://www.google.com/maps?q=8%20Gillians%20Way%2C%20Oxford%20OX4%202YD&z=15&output=embed";
 
 export const HoursAndLocation = () => (
   <section
@@ -70,34 +73,36 @@ export const HoursAndLocation = () => (
           </h2>
 
           <FadeIn delay={0.15} className="mt-12">
-            <a
-              href={LINKS.directions}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="map-link"
-              className="group qf-glass relative block overflow-hidden rounded-3xl"
-            >
-              <img
-                src={MAP_IMG}
-                alt="Map to 8 Gillians Way, Oxford"
-                className="h-80 w-full object-cover opacity-75 saturate-[0.85] transition-all duration-700 group-hover:scale-[1.03] group-hover:opacity-100 group-hover:saturate-100 md:h-[420px]"
+            <div className="group qf-glass relative overflow-hidden rounded-3xl" data-testid="map-card">
+              <iframe
+                title="Map To QuincyFadez"
+                src={MAP_EMBED}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-80 w-full border-0 opacity-70 grayscale transition-all duration-700 group-hover:opacity-90 md:h-[420px]"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-              <div className="absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[var(--qf-gold)] backdrop-blur-md">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/25 to-transparent" />
+              <div className="pointer-events-none absolute left-5 top-5 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[var(--qf-gold)] backdrop-blur-md">
                 <MapPin size={18} />
               </div>
               <div className="absolute bottom-5 left-5 right-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
+                <div className="pointer-events-none">
                   <p className="font-serif text-xl text-white md:text-2xl">{LINKS.address}</p>
                   <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.25em] text-zinc-400">
                     Oxford · QuincyFadez
                   </p>
                 </div>
-                <span className="inline-flex w-fit items-center rounded-full border border-white/15 bg-black/40 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white backdrop-blur-md transition-all duration-300 group-hover:border-[var(--qf-gold)]/50 group-hover:text-[var(--qf-gold-soft)]">
+                <a
+                  href={LINKS.directions}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="map-link"
+                  className="inline-flex w-fit items-center rounded-full border border-white/15 bg-black/60 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white backdrop-blur-md transition-all duration-300 hover:border-[var(--qf-gold)]/50 hover:text-[var(--qf-gold-soft)]"
+                >
                   Get Directions ↗
-                </span>
+                </a>
               </div>
-            </a>
+            </div>
           </FadeIn>
         </div>
       </div>

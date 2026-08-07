@@ -26,7 +26,7 @@ export const SiteHeader = () => {
       data-testid="site-header"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         scrolled || menuOpen
-          ? "border-b border-white/10 bg-black/75 backdrop-blur-xl"
+          ? "border-b border-white/10 bg-[#050505]/78 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
           : "border-b border-transparent"
       }`}
     >
@@ -41,7 +41,7 @@ export const SiteHeader = () => {
           <span className="brand-metal font-['Anton'] text-2xl uppercase tracking-tight md:text-[42px]">
             QuincyFadez
           </span>
-          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-white/90 md:ml-2.5 md:h-2 md:w-2" />
+          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-[var(--qf-gold)] md:ml-2.5 md:h-2 md:w-2" />
         </a>
 
         <nav className="hidden items-center gap-9 md:flex" aria-label="Primary Navigation">
@@ -53,7 +53,7 @@ export const SiteHeader = () => {
               className="group relative font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:text-white"
             >
               {n.label}
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-white transition-all duration-300 group-hover:w-full" />
+              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-[var(--qf-gold)] via-[var(--qf-blue)] to-[var(--qf-violet)] transition-all duration-300 group-hover:w-full" />
             </a>
           ))}
         </nav>
@@ -64,7 +64,7 @@ export const SiteHeader = () => {
             target="_blank"
             rel="noopener noreferrer"
             data-testid="header-book-btn"
-            className="hidden rounded-full border border-white/20 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-black sm:inline-flex"
+            className="qf-gold-button hidden rounded-full px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] sm:inline-flex"
           >
             Book Now
           </a>
@@ -73,7 +73,7 @@ export const SiteHeader = () => {
             aria-label={menuOpen ? "Close Menu" : "Open Menu"}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/20 text-white md:hidden"
+            className="qf-glass inline-flex h-10 w-10 items-center justify-center rounded-full text-white md:hidden"
           >
             {menuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
@@ -85,16 +85,16 @@ export const SiteHeader = () => {
           menuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}
       >
-        <nav className="border-t border-white/10 px-5 pb-6 pt-4" aria-label="Mobile Navigation">
+        <nav className="border-t border-white/10 bg-[#070707]/96 px-5 pb-6 pt-4 backdrop-blur-2xl" aria-label="Mobile Navigation">
           {NAV.map((n) => (
             <a
               key={n.href}
               href={n.href}
               onClick={closeMenu}
-              className="flex items-center justify-between border-b border-white/10 py-4 font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-300"
+              className="flex items-center justify-between border-b border-white/10 py-4 font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-300 transition-colors hover:text-white"
             >
               {n.label}
-              <span>↗</span>
+              <span className="qf-gold">↗</span>
             </a>
           ))}
           <a
@@ -102,7 +102,7 @@ export const SiteHeader = () => {
             target="_blank"
             rel="noopener noreferrer"
             onClick={closeMenu}
-            className="mt-5 flex w-full items-center justify-center rounded-full bg-white py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-black"
+            className="qf-gold-button mt-5 flex w-full items-center justify-center rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.2em]"
           >
             Book Your Appointment
           </a>

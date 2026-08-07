@@ -35,7 +35,7 @@ function computeStatus(now) {
     }
     if (open > now) {
       const dayLabel =
-        offset === 0 ? "today" : offset === 1 ? "tomorrow" : NAMES[d.getDay()];
+        offset === 0 ? "Today" : offset === 1 ? "Tomorrow" : NAMES[d.getDay()];
       return { open: false, target: open, dayLabel, openStr };
     }
   }
@@ -48,7 +48,6 @@ function breakdown(ms) {
     d: Math.floor(s / 86400),
     h: Math.floor((s % 86400) / 3600),
     m: Math.floor((s % 3600) / 60),
-    s: s % 60,
   };
 }
 
@@ -57,7 +56,7 @@ const Unit = ({ value, label }) => (
     <span className="font-mono text-xl tabular-nums text-white md:text-2xl">
       {String(value).padStart(2, "0")}
     </span>
-    <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+    <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
       {label}
     </span>
   </span>
@@ -67,19 +66,18 @@ export const OpeningCountdown = () => {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
+    const id = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
 
   const status = computeStatus(now);
   if (!status) return null;
 
-  const { d, h, m, s } = breakdown(status.target - now);
+  const { d, h, m } = breakdown(status.target - now);
   const units = [];
-  if (d > 0) units.push({ value: d, label: "days" });
-  units.push({ value: h, label: "hrs" });
-  units.push({ value: m, label: "min" });
-  units.push({ value: s, label: "sec" });
+  if (d > 0) units.push({ value: d, label: "Days" });
+  units.push({ value: h, label: "Hrs" });
+  units.push({ value: m, label: "Min" });
 
   return (
     <motion.div
@@ -88,36 +86,32 @@ export const OpeningCountdown = () => {
       viewport={{ once: true }}
       transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       data-testid="opening-countdown"
-      className="flex flex-col gap-5 rounded-2xl border border-zinc-800 bg-black/40 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+      className="qf-glass flex flex-col gap-5 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
     >
       <div className="flex items-center gap-3">
         <span
           className={`relative flex h-2.5 w-2.5 ${
-            status.open ? "text-emerald-400" : "text-amber-400"
+            status.open ? "text-emerald-400" : "text-amber-300"
           }`}
         >
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-50" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
         </span>
         <div className="leading-tight">
-          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-400">
-            {status.open ? "Open now" : `Opens ${status.dayLabel}`}
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-400">
+            {status.open ? "Open Now" : `Opens ${status.dayLabel}`}
           </p>
-          <p className="font-serif text-lg text-white">
-            {status.open
-              ? `Closes at ${status.closeStr}`
-              : `Doors at ${status.openStr}`}
+          <p className="mt-1 font-serif text-lg text-white">
+            {status.open ? `Until ${status.closeStr}` : `From ${status.openStr}`}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4" data-testid="countdown-timer">
+      <div className="flex items-center gap-3 sm:gap-4" data-testid="countdown-timer">
         {units.map((u, i) => (
-          <div key={u.label} className="flex items-center gap-4">
+          <div key={u.label} className="flex items-center gap-3 sm:gap-4">
             <Unit value={u.value} label={u.label} />
-            {i < units.length - 1 && (
-              <span className="text-zinc-700">:</span>
-            )}
+            {i < units.length - 1 && <span className="text-zinc-700">:</span>}
           </div>
         ))}
       </div>

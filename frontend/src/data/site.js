@@ -7,18 +7,12 @@ export const LINKS = {
   address: "8 Gillians Way, Oxford OX4 2YD",
 };
 
-export const PROFILE_IMG =
-  "https://barbr-assets-prod.b-cdn.net/media/user/583640/barber_profile/2ae04014_profile-1785752577750.png";
-
-export const MAP_IMG =
-  "https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-l+ffffff(-1.2202434,51.7402247)/-1.2202434,51.7402247,14.5/900x700@2x?access_token=MAPBOX_TOKEN_REMOVED";
-
 const CDN = "https://vz-d1735d3f-314.b-cdn.net";
 const MEDIA_IDS = [
   "618cf253-dad5-4c95-9260-22be4fe31719",
   "8656d667-9c99-4d1b-b20b-bf8f1b2ec44c",
   "ed50b0aa-31d1-4496-925f-35cf0b30f816",
-  "6fc2a989-2f95-40a9-ae35-83223a93f16f",
+  "6fc2a989-2f95-40a9-ae35-83223a83f16f",
   "30f766a7-d30f-4abd-aa77-7729f26d27a4",
   "534917f9-0536-445d-a979-82f12cafcd75",
 ];

@@ -5,20 +5,27 @@ export const AboutManifesto = () => (
   <section
     id="about"
     data-testid="about-section"
-    className="qf-ambient relative mx-auto max-w-[1400px] overflow-hidden px-6 py-28 md:px-10 md:py-40"
+    aria-labelledby="about-heading"
+    className="qf-ambient relative mx-auto max-w-[1400px] overflow-hidden px-5 py-24 sm:px-6 md:px-10 md:py-40"
   >
-    <div className="grid gap-16 md:grid-cols-[0.9fr_1.4fr] md:gap-24">
+    <div className="grid gap-14 md:grid-cols-[0.9fr_1.4fr] md:gap-24">
       <div className="md:sticky md:top-32 md:self-start">
         <Label data-testid="about-label">About QuincyFadez</Label>
-        <h2 className="mt-8 max-w-md font-serif text-4xl leading-[0.92] tracking-tight text-white md:text-6xl">
+        <h2
+          id="about-heading"
+          className="mt-7 max-w-md font-serif text-[clamp(2.75rem,13vw,4rem)] leading-[0.92] tracking-[-0.035em] text-white md:mt-8 md:text-6xl"
+        >
           <RevealText lines={["Built Around", "The Details."]} italicIdx={[1]} />
         </h2>
         <FadeIn delay={0.2}>
-          <p className="mt-8 max-w-sm text-sm font-light leading-relaxed text-zinc-400 md:text-[15px]">
+          <p className="mt-7 max-w-md text-[15px] font-light leading-7 text-zinc-400 md:mt-8 md:max-w-sm">
             Every Appointment Is Focused On Precision, Consistency And Making Sure You Leave Feeling Sharp.
           </p>
-          <div className="mt-8">
-            <BookButton className="qf-gold-button" testid="about-book-btn">
+          <div className="mt-7 md:mt-8">
+            <BookButton
+              className="qf-gold-button w-full sm:w-auto"
+              testid="about-book-btn"
+            >
               Book Your Appointment
             </BookButton>
           </div>
@@ -31,16 +38,18 @@ export const AboutManifesto = () => (
             key={c.no}
             delay={i * 0.08}
             data-testid={`chapter-${c.no}`}
-            className={`group grid grid-cols-[auto_1fr] gap-6 py-10 md:gap-10 ${
+            className={`group grid grid-cols-[2.25rem_1fr] gap-4 py-8 sm:grid-cols-[auto_1fr] sm:gap-6 md:gap-10 md:py-10 ${
               i !== 0 ? "border-t border-white/10" : ""
             }`}
           >
-            <span className="font-mono text-xs text-[var(--qf-gold)]/70">{c.no}</span>
+            <span className="pt-1 font-mono text-[10px] tracking-[0.2em] text-[var(--qf-gold)]/70 md:text-xs">
+              {c.no}
+            </span>
             <div>
-              <h3 className="font-serif text-2xl tracking-tight text-white transition-transform duration-500 group-hover:translate-x-1 md:text-3xl">
+              <h3 className="font-serif text-2xl leading-tight tracking-[-0.02em] text-white transition-transform duration-500 motion-safe:md:group-hover:translate-x-1 md:text-3xl">
                 {c.title}
               </h3>
-              <p className="mt-4 max-w-xl text-base font-light leading-relaxed text-zinc-400">
+              <p className="mt-3 max-w-xl text-[15px] font-light leading-7 text-zinc-400 md:mt-4 md:text-base md:leading-relaxed">
                 {c.body}
               </p>
             </div>

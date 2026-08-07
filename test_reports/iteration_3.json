@@ -1,0 +1,34 @@
+{
+  "summary": "Frontend-only smoke test for QuincyFadez barber marketing site. Verified WhatsApp bug-fix, gallery hover-play videos, About profile image, booking CTAs, map link, and console cleanliness. All test items PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Hero", "issues": ["Hero heading DOM contains 'The best barber in Oxford.' (title-cased via CSS to 'The Best Barber In Oxford.') but is not visibly rendered on initial viewport in the screenshot — likely due to framer-motion RevealText animation state; text is present in DOM so functionally OK. Consider verifying animation timing on slower devices."]}
+    ]
+  },
+  "verifications": {
+    "footer-whatsapp-btn href": "https://wa.me/447490194682 (target=_blank) — PASS",
+    "footer-instagram-btn href": "https://www.instagram.com/QuincyFadez — PASS",
+    "gallery tiles 0-5": "All 6 tiles present with <video><source src ending /play_720p.mp4> and poster ending /thumbnail.jpg — PASS",
+    "video HTTP status": "206 (Partial Content, range supported) for tile-0 — PASS",
+    "hover-play": "tile-0 video.paused=false after mouseenter — PASS",
+    "about-profile-img": "naturalWidth=1254, loaded successfully — PASS",
+    "booking CTAs": "header-book-btn, hero-book-btn, membership-join-btn, footer-book-btn all -> https://www.barbr.me/quincyfadez — PASS",
+    "map-link": "https://www.google.com/maps/dir/?api=1&destination=51.7402247,-1.2202434 — PASS",
+    "console errors": "None"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "WorkGallery: preload='none' + hover-triggered play() may show a brief blank frame on first hover; consider preload='metadata' for smoother UX.",
+    "Videos load 6 x 720p MP4s from b-cdn — good use of range requests (206). No lazy-loading beyond preload='none' though; consider IntersectionObserver-based load if bandwidth matters."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Static frontend-only site. Preview URL: https://quincy-barbershop.preview.emergentagent.com. Videos on vz-d1735d3f-314.b-cdn.net support range requests. All data-testids verified in this run: footer-whatsapp-btn, footer-instagram-btn, header-book-btn, hero-book-btn, membership-join-btn, footer-book-btn, map-link, about-profile-img, gallery-tile-0..5."
+}

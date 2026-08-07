@@ -1,0 +1,188 @@
+{
+  "theme": "dark",
+  "typography": {
+    "headings": {
+      "family": "Playfair Display, serif",
+      "weights": ["400", "500", "italic"],
+      "usage": "Hero typography, section titles. Must use tracking-tighter."
+    },
+    "body": {
+      "family": "Inter, sans-serif",
+      "weights": ["300", "400"],
+      "usage": "Paragraphs, descriptions, general UI text."
+    },
+    "labels": {
+      "family": "JetBrains Mono, monospace",
+      "weights": ["400"],
+      "usage": "Prices, em-dash section labels (— About), tiny uppercase overlines."
+    }
+  },
+  "colors": {
+    "background": "#050505",
+    "foreground": "#FAFAFA",
+    "muted": "#A1A1AA",
+    "accent": "#FFFFFF",
+    "border": "#27272A",
+    "surface": "#0A0A0A"
+  },
+  "visual_enhancers": {
+    "texture": "Global subtle grain/noise overlay using a fixed background div with opacity-10 mix-blend-overlay.",
+    "glassmorphism": "Use backdrop-blur-xl bg-black/60 with a 1px border-white/10 for the sticky navigation.",
+    "borders": "1px solid #27272A (zinc-800) for separating sections, lists, and the membership card.",
+    "image_treatment": "Black/white or desaturated filters on hover, subtle scale-up. Hero image should have a vignette or gradient overlay so text pops."
+  },
+  "layouts": {
+    "hero": "100vh height. Kinetic text reveal for 'The best barber in Oxford.' Text is massive (text-5xl md:text-7xl). The hero image is placed in a tight editorial frame or as a darkened background.",
+    "about": "Asymmetric bento or 2-column grid. Left: Sticky '— About' label. Right: Numbered manifesto chapters (01. The Origin - Loved barbering before clippers, 02. The Journey - Self taught since 2022, 03. The Barber - 25 yrs old, Oxford based).",
+    "gallery": "Grid of varied image sizes (e.g., col-span-2 row-span-2 mixed with col-span-1). Em-dash '— The work' label. High-contrast gaps.",
+    "services": "List layout. Clean borders between items. Name on left, price on right, description under name. Minimalist.",
+    "membership": "A standalone luxury card layout. Use a subtle tracing beam or metallic border. Highlights 'VIP x4' and '£64/month'.",
+    "footer_map": "Dark-themed map (Mapbox/Google static) on one side, Opening hours table on the other. Large footer CTA 'Book a cut'."
+  },
+  "motion": {
+    "scroll": "MUST use Lenis for smooth momentum scrolling.",
+    "reveals": "Framer Motion for line-by-line text reveals (masking) on headings.",
+    "marquee": "react-fast-marquee for a slow, elegant editorial ribbon at the bottom or between sections.",
+    "parallax": "Subtle y-axis parallax on gallery images using framer-motion useScroll."
+  },
+  "component_names": [
+    "HeroSection",
+    "AboutManifesto",
+    "WorkGallery",
+    "ServicesMenu",
+    "VipMembershipCard",
+    "HoursAndLocation",
+    "EditorialMarquee",
+    "SiteHeader",
+    "SiteFooter"
+  ],
+  "accessibility": {
+    "contrast": "Ensure pure white text on the #050505 background. Muted text must be at least #A1A1AA.",
+    "motion": "Respect prefers-reduced-motion for all framer-motion animations."
+  },
+  "image_urls": {
+    "hero_texture": {
+      "url": "https://images.unsplash.com/photo-1690983320828-c01b88baacb0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MjJ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMGRhcmslMjBub2lzZSUyMHRleHR1cmV8ZW58MHx8fHwxNzg1OTc2NzY4fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dark noise texture for background overlay",
+      "category": "background"
+    },
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1781768526571-ef9c333279c7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzOTB8MHwxfHNlYXJjaHw0fHxkYXJrJTIwbW9vZHklMjBiYXJiZXIlMjBzaG9wJTIwaW50ZXJpb3J8ZW58MHx8fHwxNzg1OTc2NzY4fDA&ixlib=rb-4.1.0&q=85",
+      "description": "Dark moody barber shop interior",
+      "category": "hero"
+    },
+    "gallery_1": {
+      "url": "https://quincyfadez.barbr.site/_next/image?url=https%3A%2F%2Fvz-d1735d3f-314.b-cdn.net%2F618cf253-dad5-4c95-9260-22be4fe31719%2Fthumbnail.jpg&w=3840&q=75",
+      "description": "Fresh fade haircut 1",
+      "category": "gallery"
+    },
+    "gallery_2": {
+      "url": "https://quincyfadez.barbr.site/_next/image?url=https%3A%2F%2Fvz-d1735d3f-314.b-cdn.net%2F8656d667-9c99-4d1b-b20b-bf8f1b2ec44c%2Fthumbnail.jpg&w=3840&q=75",
+      "description": "Fresh fade haircut 2",
+      "category": "gallery"
+    },
+    "gallery_3": {
+      "url": "https://quincyfadez.barbr.site/_next/image?url=https%3A%2F%2Fvz-d1735d3f-314.b-cdn.net%2Fed50b0aa-31d1-4496-925f-35cf0b30f816%2Fthumbnail.jpg&w=3840&q=75",
+      "description": "Fresh fade haircut 3",
+      "category": "gallery"
+    },
+    "gallery_4": {
+      "url": "https://quincyfadez.barbr.site/_next/image?url=https%3A%2F%2Fvz-d1735d3f-314.b-cdn.net%2F6fc2a989-2f95-40a9-ae35-83223a93f16f%2Fthumbnail.jpg&w=3840&q=75",
+      "description": "Fresh fade haircut 4",
+      "category": "gallery"
+    },
+    "gallery_5": {
+      "url": "https://quincyfadez.barbr.site/_next/image?url=https%3A%2F%2Fvz-d1735d3f-314.b-cdn.net%2F30f766a7-d30f-4abd-aa77-7729f26d27a4%2Fthumbnail.jpg&w=3840&q=75",
+      "description": "Fresh fade haircut 5",
+      "category": "gallery"
+    },
+    "map_placeholder": {
+      "url": "https://api.mapbox.com/styles/v1/mapbox/streets-v11/static/pin-l+0a0a0a(-1.2202434,51.7402247)/-1.2202434,51.7402247,14.5/640x360@2x?access_token=MAPBOX_TOKEN_REMOVED",
+      "description": "Map to 8 Gillians Way",
+      "category": "location"
+    }
+  },
+  "content": {
+    "personal_story": {
+      "age": "25 years old",
+      "experience": "Self taught, cutting since 2022",
+      "passion": "Loved the idea of cutting hair before even picking up a pair of clippers",
+      "vibe": "Modern, enticing, high-end editorial"
+    },
+    "services": [
+      {
+        "name": "Hair Cut",
+        "price": "£20",
+        "desc": "Any type of cut. Including skin fades, tapers and all scissor cuts",
+        "duration": "45 min"
+      },
+      {
+        "name": "Haircut & Beard",
+        "price": "£25",
+        "desc": "Any type of cut & beard trim",
+        "duration": "60 min"
+      },
+      {
+        "name": "Shape Up",
+        "price": "£10",
+        "desc": "A quick shape up for when you need to look fresh without a full trim",
+        "duration": "15 min"
+      },
+      {
+        "name": "Beard Trim",
+        "price": "£10",
+        "desc": "If you just need your beard groomed",
+        "duration": "15 min"
+      }
+    ],
+    "membership": {
+      "name": "VIP x4",
+      "price": "£64 / month",
+      "benefits": [
+        "Up to 4 haircuts each month",
+        "7-day cooldown between bookings",
+        "Renews every 30 days · cancel anytime"
+      ]
+    },
+    "hours": {
+      "Monday": "17:45 – 22:00",
+      "Tuesday": "17:45 – 22:00",
+      "Wednesday": "17:45 – 22:00",
+      "Thursday": "17:45 – 22:00",
+      "Friday": "Closed",
+      "Saturday": "09:00 – 12:00",
+      "Sunday": "Closed"
+    },
+    "links": {
+      "booking": "https://www.barbr.me/quincyfadez",
+      "instagram": "https://www.instagram.com/QuincyFadez",
+      "location": "8 Gillians Way, Oxford OX4 2YD"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install required dependencies: framer-motion, @studio-freight/react-lenis, react-fast-marquee, lucide-react",
+    "Avoid using Shadcn components for the marketing structure (use raw HTML/Tailwind for artistic overlapping/asymmetry). Shadcn is fine for small interactive bits if needed.",
+    "Do NOT use standard default fonts like Roboto or Open Sans for headings. Use Playfair Display imported from Google Fonts.",
+    "Construct the site as a single-page scrolling experience with anchor links in the sticky navigation.",
+    "Ensure 'Book Now' buttons link out to the booking URL.",
+    "For the gallery, use a CSS grid with different spanning sizes (e.g., col-span-2 row-span-2) and render the image URLs provided.",
+    "Strictly follow the color palette to achieve an editorial, near-black, high-contrast aesthetic.",
+    "Use uppercase, wide-tracked monospace fonts for all section labels starting with an em-dash (e.g., '— ABOUT').",
+    "Create standard components using .js or .jsx, NOT .tsx, as specified in the guidelines."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition. Eg: `transition: all`. This results in breaking transforms. Always add transitions for specific interactive elements like button, input excluding transforms.",
+    "You MUST NOT center align the app container, ie do not add `.App { text-align: center; }` in the css file. This disrupts the human natural reading flow of text.",
+    "Always use modern button styles like pill-shaped, or sharp button with interaction animations & color relevant to the app style.",
+    "NEVER: use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 etc for icons.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Subtle grain textures, noise overlays, custom cursors, selection states, and loading animations: separates good from extraordinary.",
+    "All interactive and key informational elements MUST include a `data-testid` attribute to facilitate robust automated testing."
+  ]
+}

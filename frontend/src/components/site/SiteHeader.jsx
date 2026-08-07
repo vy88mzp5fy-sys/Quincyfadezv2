@@ -3,9 +3,9 @@ import { Menu, X } from "lucide-react";
 import { LINKS } from "@/data/site";
 
 const NAV = [
-  { label: "About", href: "#about" },
   { label: "Work", href: "#work" },
   { label: "Services", href: "#services" },
+  { label: "About", href: "#about" },
   { label: "Visit", href: "#visit" },
 ];
 
@@ -16,8 +16,20 @@ export const SiteHeader = () => {
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -72,6 +84,7 @@ export const SiteHeader = () => {
             type="button"
             aria-label={menuOpen ? "Close Menu" : "Open Menu"}
             aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
             onClick={() => setMenuOpen((v) => !v)}
             className="qf-glass inline-flex h-10 w-10 items-center justify-center rounded-full text-white md:hidden"
           >
@@ -81,6 +94,7 @@ export const SiteHeader = () => {
       </div>
 
       <div
+        id="mobile-navigation"
         className={`overflow-hidden transition-[max-height,opacity] duration-500 md:hidden ${
           menuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
         }`}

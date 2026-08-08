@@ -31,20 +31,21 @@ export const ServicesMenu = () => {
       </div>
 
       <div className="grid gap-10 lg:grid-cols-[1.45fr_0.85fr] lg:gap-12">
-        <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025]">
+        <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025]" role="list" aria-label="Available Services">
           {SERVICES.map((service, index) => (
             <motion.a
               key={service.name}
               href={LINKS.booking}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`Book ${service.name}, ${service.price}, ${service.duration}`}
+              role="listitem"
+              aria-label={`Book ${service.name}, ${service.price}, ${service.duration}. Opens Booking In A New Tab.`}
               data-testid={`service-${index}`}
               initial={reduceMotion ? false : { opacity: 0, y: 18 }}
               whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-8%" }}
-              transition={{ duration: 0.65, ease: EASE, delay: index * 0.06 }}
-              className="group relative grid gap-5 border-b border-white/[0.07] p-5 transition-colors duration-500 last:border-b-0 hover:bg-white/[0.04] focus-visible:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-inset sm:p-6 md:grid-cols-[1fr_auto] md:items-center md:p-8"
+              transition={{ duration: reduceMotion ? 0 : 0.65, ease: EASE, delay: reduceMotion ? 0 : index * 0.06 }}
+              className="group relative grid min-h-[9rem] gap-5 border-b border-white/[0.07] p-5 transition-colors duration-500 last:border-b-0 hover:bg-white/[0.04] active:bg-white/[0.05] focus-visible:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-inset sm:p-6 md:min-h-0 md:grid-cols-[1fr_auto] md:items-center md:p-8"
             >
               <span className="absolute inset-y-0 left-0 w-[2px] origin-bottom scale-y-0 bg-gradient-to-b from-[#6f9cff] via-[#d6bd7a] to-[#a67cff] transition-transform duration-500 group-hover:scale-y-100 group-focus-visible:scale-y-100" />
 
@@ -109,7 +110,7 @@ export const ServicesMenu = () => {
               <ul className="mt-7 space-y-4">
                 {MEMBERSHIP.benefits.map((benefit) => (
                   <li key={benefit} className="flex items-start gap-3 text-sm font-light leading-6 text-zinc-300">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#d6bd7a]/30 bg-[#d6bd7a]/10 text-[#f1dda2]">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#d6bd7a]/30 bg-[#d6bd7a]/10 text-[#f1dda2]" aria-hidden="true">
                       <Check size={11} strokeWidth={2.2} />
                     </span>
                     {benefit}
@@ -121,13 +122,14 @@ export const ServicesMenu = () => {
                 href={LINKS.booking}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`View ${MEMBERSHIP.name} Membership Booking Details. Opens In A New Tab.`}
                 data-testid="membership-join-btn"
-                className="qf-gold-button mt-9 flex w-full items-center justify-center rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                className="qf-gold-button mt-9 flex min-h-12 w-full items-center justify-center rounded-full px-5 py-4 text-center font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               >
                 View Membership
               </a>
 
-              <p className="mt-4 text-center font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-500">
+              <p className="mt-4 text-center font-mono text-[8px] uppercase leading-relaxed tracking-[0.18em] text-zinc-500">
                 Membership Details Available Through Booking
               </p>
             </div>

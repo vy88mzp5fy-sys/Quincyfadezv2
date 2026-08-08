@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import { LINKS } from "@/data/site";
 
@@ -12,6 +12,8 @@ const NAV = [
 export const SiteHeader = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef(null);
+  const mobileNavRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -24,12 +26,35 @@ export const SiteHeader = () => {
     if (!menuOpen) return;
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") setMenuOpen(false);
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusable = mobileNavRef.current?.querySelectorAll(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKeyDown);
+    requestAnimationFrame(() => mobileNavRef.current?.querySelector("a")?.focus());
 
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -98,6 +123,7 @@ export const SiteHeader = () => {
             Book Now
           </a>
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label={menuOpen ? "Close Menu" : "Open Menu"}
             aria-expanded={menuOpen}
@@ -105,13 +131,14 @@ export const SiteHeader = () => {
             onClick={() => setMenuOpen((v) => !v)}
             className="qf-glass inline-flex h-11 w-11 items-center justify-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 md:hidden"
           >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
         </div>
       </div>
 
       <div
         id="mobile-navigation"
+        ref={mobileNavRef}
         aria-hidden={!menuOpen}
         className={`overflow-hidden transition-[max-height,opacity] duration-500 md:hidden motion-reduce:transition-none ${
           menuOpen ? "max-h-[32rem] opacity-100" : "pointer-events-none max-h-0 opacity-0"

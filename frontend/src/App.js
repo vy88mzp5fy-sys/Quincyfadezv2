@@ -74,9 +74,12 @@ function App() {
 
   return (
     <div className="App relative min-h-screen bg-[#050505] text-white antialiased">
+      <a className="skip-link" href="#main-content">
+        Skip To Main Content
+      </a>
       <div className="grain" aria-hidden="true" />
       <SiteHeader />
-      <main>
+      <main id="main-content" tabIndex="-1">
         <HeroSection />
         <TrustStrip />
         <EditorialMarquee />

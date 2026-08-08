@@ -29,7 +29,14 @@ export const GALLERY = [
     thumb: "/media/gallery-replacement-01.jpg",
     video: "/media/gallery-replacement-01.mp4",
   },
-  ...MEDIA_IDS.slice(1).map(mediaFromId),
+  mediaFromId(MEDIA_IDS[1]),
+  mediaFromId(MEDIA_IDS[2]),
+  {
+    thumb: "/media/work-04-replacement.jpg",
+    video: "/media/work-04-replacement.mp4",
+  },
+  mediaFromId(MEDIA_IDS[4]),
+  mediaFromId(MEDIA_IDS[5]),
 ];
 
 export const SERVICES = [

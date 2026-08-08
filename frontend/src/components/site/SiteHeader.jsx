@@ -121,7 +121,7 @@ export const SiteHeader = () => {
             rel="noopener noreferrer"
             aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
             data-testid="header-book-btn"
-            className="hidden min-h-11 items-center rounded-full border border-[var(--qf-gold)]/70 bg-black/10 px-6 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--qf-gold-soft)] transition-all hover:bg-[var(--qf-gold)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
+            className="qf-gold-button hidden rounded-full px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
           >
             Book Now
           </a>

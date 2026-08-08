@@ -7,26 +7,40 @@ export const LINKS = {
   address: "8 Gillians Way, Oxford OX4 2YD",
 };
 
-export const PROFILE_IMG =
-  "https://barbr-assets-prod.b-cdn.net/media/user/583640/barber_profile/2ae04014_profile-1785752577750.png";
-
-export const MAP_IMG =
-  "https://api.mapbox.com/styles/v1/mapbox/dark-v11/static/pin-l+ffffff(-1.2202434,51.7402247)/-1.2202434,51.7402247,14.5/900x700@2x?access_token=MAPBOX_TOKEN_REMOVED";
-
 const CDN = "https://vz-d1735d3f-314.b-cdn.net";
 const MEDIA_IDS = [
   "618cf253-dad5-4c95-9260-22be4fe31719",
   "8656d667-9c99-4d1b-b20b-bf8f1b2ec44c",
   "ed50b0aa-31d1-4496-925f-35cf0b30f816",
-  "6fc2a989-2f95-40a9-ae35-83223a93f16f",
+  "6fc2a989-2f95-40a9-ae35-83223a83f16f",
   "30f766a7-d30f-4abd-aa77-7729f26d27a4",
   "534917f9-0536-445d-a979-82f12cafcd75",
 ];
 
-export const GALLERY = MEDIA_IDS.map((id) => ({
+const mediaFromId = (id) => ({
   thumb: `${CDN}/${id}/thumbnail.jpg`,
   video: `${CDN}/${id}/play_720p.mp4`,
-}));
+});
+
+export const HERO_MEDIA = mediaFromId(MEDIA_IDS[0]);
+
+export const GALLERY = [
+  {
+    thumb: "/media/gallery-replacement-01.jpg",
+    video: "/media/gallery-replacement-01.mp4",
+  },
+  mediaFromId(MEDIA_IDS[1]),
+  mediaFromId(MEDIA_IDS[2]),
+  {
+    thumb: "/media/work-04-replacement.jpg",
+    video: "/media/work-04-replacement.mp4",
+  },
+  {
+    thumb: "/media/work-05-replacement.jpg",
+    video: "/media/work-05-replacement.mp4",
+  },
+  mediaFromId(MEDIA_IDS[5]),
+];
 
 export const SERVICES = [
   {
@@ -55,17 +69,6 @@ export const SERVICES = [
   },
 ];
 
-export const MEMBERSHIP = {
-  name: "VIP x4",
-  price: "£64",
-  cadence: "/ month",
-  benefits: [
-    "Up to 4 haircuts each month",
-    "7-day cooldown between bookings",
-    "Renews every 30 days · cancel anytime",
-  ],
-};
-
 export const HOURS = [
   { day: "Monday", time: "17:45 – 22:00" },
   { day: "Tuesday", time: "17:45 – 22:00" },
@@ -89,7 +92,7 @@ export const CHAPTERS = [
   },
   {
     no: "03",
-    title: "25 · Oxford · All In",
-    body: "25 And Oxford-Based. You Leave Looking Your Best, Every Single Time. This Isn't A Job — It's The Craft I Love.",
+    title: "Built Around You",
+    body: "Every Cut Is Personal. Clean Detail, Honest Service, And A Finish That Leaves You Looking Sharp And Feeling Confident.",
   },
 ];

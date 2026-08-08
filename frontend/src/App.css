@@ -1,43 +1,75 @@
 .App {
   overflow-x: hidden;
   text-transform: capitalize;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(64, 92, 255, 0.08), transparent 26%),
+    radial-gradient(circle at 88% 18%, rgba(157, 78, 221, 0.07), transparent 28%),
+    linear-gradient(180deg, #050505 0%, #090909 42%, #050505 100%);
+}
+
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  transform: translateY(-180%);
+  border: 1px solid rgba(214, 189, 122, 0.55);
+  border-radius: 999px;
+  background: #050505;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--qf-gold);
+  outline-offset: 3px;
+}
+
+#main-content:focus {
+  outline: none;
 }
 
 /* Brand wordmark */
 .brand-metal {
   background: linear-gradient(
-    100deg,
-    #6f6f6f 0%,
-    #ffffff 18%,
-    #c9c9c9 34%,
-    #ffffff 52%,
-    #8a8a8a 70%,
-    #f4f4f4 100%
+    105deg,
+    #8a6a2f 0%,
+    #f6e4aa 16%,
+    #ffffff 31%,
+    #d7b96f 48%,
+    #8cb4ff 65%,
+    #d3b3ff 79%,
+    #f5df9d 100%
   );
-  background-size: 220% auto;
+  background-size: 240% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: brand-sheen 7s linear infinite;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+  animation: brand-sheen 8s linear infinite;
+  filter:
+    drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 14px rgba(214, 189, 122, 0.1));
 }
 @keyframes brand-sheen {
   to {
-    background-position: 220% center;
+    background-position: 240% center;
   }
 }
 .brand-logo-link .brand-dot {
-  transition: transform 0.35s ease;
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
 }
-.brand-logo-link:hover .brand-dot {
+.brand-logo-link:hover .brand-dot,
+.brand-logo-link:focus-visible .brand-dot {
   transform: scale(1.6);
-}
-@media (prefers-reduced-motion: reduce) {
-  .brand-metal {
-    animation: none;
-  }
+  box-shadow: 0 0 18px rgba(214, 189, 122, 0.45);
 }
 
 /* Grain / noise overlay */
@@ -46,7 +78,7 @@
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.05;
+  opacity: 0.04;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
@@ -60,6 +92,7 @@
   display: inline-flex;
   white-space: nowrap;
   animation: marquee 42s linear infinite;
+  will-change: transform;
 }
 .marquee__item {
   display: inline-flex;
@@ -70,22 +103,112 @@
 }
 @keyframes marquee {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
   to {
-    transform: translateX(-33.333%);
+    transform: translate3d(-33.333%, 0, 0);
+  }
+}
+
+/* QuincyFadez Premium Colour System */
+:root {
+  --qf-gold: #d6bd7a;
+  --qf-gold-soft: #f1dda2;
+  --qf-blue: #6f9cff;
+  --qf-violet: #a67cff;
+  --qf-ink: #050505;
+}
+
+.qf-gold {
+  color: var(--qf-gold);
+}
+
+.qf-ambient {
+  position: relative;
+  isolation: isolate;
+}
+.qf-ambient::before,
+.qf-ambient::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(90px);
+  opacity: 0.25;
+}
+.qf-ambient::before {
+  width: 22rem;
+  height: 22rem;
+  left: -8rem;
+  top: 12%;
+  background: rgba(74, 111, 255, 0.28);
+}
+.qf-ambient::after {
+  width: 20rem;
+  height: 20rem;
+  right: -7rem;
+  bottom: 8%;
+  background: rgba(162, 88, 255, 0.2);
+}
+
+.qf-glass {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035));
+  box-shadow:
+    0 18px 70px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.qf-gold-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, #f4dfa0 0%, #d1ad58 48%, #f6e7b8 100%);
+  color: #0c0c0c;
+  box-shadow: 0 12px 34px rgba(214, 189, 122, 0.22);
+}
+.qf-gold-button::after {
+  content: "";
+  position: absolute;
+  inset: -2px auto -2px -35%;
+  width: 30%;
+  transform: skewX(-22deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transition: left 0.65s ease;
+}
+.qf-gold-button:hover::after,
+.qf-gold-button:focus-visible::after {
+  left: 120%;
+}
+.qf-gold-button:hover,
+.qf-gold-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 42px rgba(214, 189, 122, 0.3);
+}
+
+@media (hover: none) {
+  .brand-logo-link:hover .brand-dot,
+  .qf-gold-button:hover {
+    transform: none;
+  }
+
+  .qf-gold-button:hover::after {
+    left: -35%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .brand-metal,
   .marquee__track {
     animation: none;
   }
-}
 
-
-/* QuincyFadez V2 */
-:root {
-  --qf-gold: #d6bd7a;
+  .brand-logo-link .brand-dot,
+  .qf-gold-button,
+  .qf-gold-button::after,
+  .skip-link {
+    transition-duration: 0.01ms;
+  }
 }
-.qf-gold { color: var(--qf-gold); }

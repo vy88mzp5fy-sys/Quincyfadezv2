@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { HOURS } from "@/data/site";
 
+const TIME_ZONE = "Europe/London";
 const NAMES = [
   "Sunday",
   "Monday",
@@ -12,52 +13,104 @@ const NAMES = [
   "Saturday",
 ];
 
+const londonFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+function londonParts(date) {
+  const parts = {};
+  londonFormatter.formatToParts(date).forEach(({ type, value }) => {
+    if (type !== "literal") parts[type] = value;
+  });
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+  };
+}
+
+function londonLocalToInstant(year, month, day, hour, minute) {
+  const desiredWallTime = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  let instant = desiredWallTime;
+
+  // Convert a Europe/London wall-clock time to the matching real instant.
+  // Iterating handles both GMT and BST without hard-coding daylight-saving dates.
+  for (let i = 0; i < 3; i += 1) {
+    const p = londonParts(new Date(instant));
+    const representedWallTime = Date.UTC(
+      p.year,
+      p.month - 1,
+      p.day,
+      p.hour,
+      p.minute,
+      0,
+      0,
+    );
+    instant += desiredWallTime - representedWallTime;
+  }
+
+  return new Date(instant);
+}
+
 function computeStatus(now) {
-  const byDay = {};
-  HOURS.forEach((h) => (byDay[h.day] = h.time));
+  const byDay = Object.fromEntries(HOURS.map((h) => [h.day, h.time]));
+  const current = londonParts(now);
+  const currentDate = new Date(Date.UTC(current.year, current.month - 1, current.day));
 
-  for (let offset = 0; offset < 8; offset++) {
-    const d = new Date(now);
-    d.setDate(now.getDate() + offset);
-    const t = byDay[NAMES[d.getDay()]];
-    if (!t || t === "Closed") continue;
+  for (let offset = 0; offset < 8; offset += 1) {
+    const calendarDate = new Date(currentDate);
+    calendarDate.setUTCDate(currentDate.getUTCDate() + offset);
 
-    const [openStr, closeStr] = t.split("–").map((x) => x.trim());
-    const [oh, om] = openStr.split(":").map(Number);
-    const [ch, cm] = closeStr.split(":").map(Number);
-    const open = new Date(d);
-    open.setHours(oh, om, 0, 0);
-    const close = new Date(d);
-    close.setHours(ch, cm, 0, 0);
+    const year = calendarDate.getUTCFullYear();
+    const month = calendarDate.getUTCMonth() + 1;
+    const day = calendarDate.getUTCDate();
+    const dayName = NAMES[calendarDate.getUTCDay()];
+    const hours = byDay[dayName];
+
+    if (!hours || hours === "Closed") continue;
+
+    const [openStr, closeStr] = hours.split("–").map((x) => x.trim());
+    const [openHour, openMinute] = openStr.split(":").map(Number);
+    const [closeHour, closeMinute] = closeStr.split(":").map(Number);
+    const open = londonLocalToInstant(year, month, day, openHour, openMinute);
+    const close = londonLocalToInstant(year, month, day, closeHour, closeMinute);
 
     if (offset === 0 && now >= open && now < close) {
       return { open: true, target: close, closeStr };
     }
+
     if (open > now) {
-      const dayLabel =
-        offset === 0 ? "today" : offset === 1 ? "tomorrow" : NAMES[d.getDay()];
+      const dayLabel = offset === 0 ? "Today" : offset === 1 ? "Tomorrow" : dayName;
       return { open: false, target: open, dayLabel, openStr };
     }
   }
+
   return null;
 }
 
 function breakdown(ms) {
-  const s = Math.max(0, Math.floor(ms / 1000));
+  const totalMinutes = Math.max(0, Math.floor(ms / 60000));
   return {
-    d: Math.floor(s / 86400),
-    h: Math.floor((s % 86400) / 3600),
-    m: Math.floor((s % 3600) / 60),
-    s: s % 60,
+    d: Math.floor(totalMinutes / 1440),
+    h: Math.floor((totalMinutes % 1440) / 60),
+    m: totalMinutes % 60,
   };
 }
 
 const Unit = ({ value, label }) => (
-  <span className="flex items-baseline gap-1">
-    <span className="font-mono text-xl tabular-nums text-white md:text-2xl">
+  <span className="flex min-w-0 items-baseline gap-1">
+    <span className="font-mono text-lg tabular-nums text-white sm:text-xl md:text-2xl">
       {String(value).padStart(2, "0")}
     </span>
-    <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">
+    <span className="font-mono text-[8px] uppercase tracking-widest text-zinc-500 sm:text-[9px]">
       {label}
     </span>
   </span>
@@ -65,59 +118,74 @@ const Unit = ({ value, label }) => (
 
 export const OpeningCountdown = () => {
   const [now, setNow] = useState(() => new Date());
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
+    const tick = () => setNow(new Date());
+    const id = setInterval(tick, 30000);
+    const onVisibilityChange = () => {
+      if (!document.hidden) tick();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const status = computeStatus(now);
   if (!status) return null;
 
-  const { d, h, m, s } = breakdown(status.target - now);
+  const { d, h, m } = breakdown(status.target - now);
   const units = [];
-  if (d > 0) units.push({ value: d, label: "days" });
-  units.push({ value: h, label: "hrs" });
-  units.push({ value: m, label: "min" });
-  units.push({ value: s, label: "sec" });
+  if (d > 0) units.push({ value: d, label: "Days" });
+  units.push({ value: h, label: "Hrs" });
+  units.push({ value: m, label: "Min" });
+
+  const statusText = status.open
+    ? `Open now until ${status.closeStr}`
+    : `Opens ${status.dayLabel} from ${status.openStr}`;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       data-testid="opening-countdown"
-      className="flex flex-col gap-5 rounded-2xl border border-zinc-800 bg-black/40 p-6 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"
+      aria-label={statusText}
     >
       <div className="flex items-center gap-3">
         <span
-          className={`relative flex h-2.5 w-2.5 ${
-            status.open ? "text-emerald-400" : "text-amber-400"
+          className={`relative flex h-2.5 w-2.5 shrink-0 ${
+            status.open ? "text-emerald-400" : "text-amber-300"
           }`}
+          aria-hidden="true"
         >
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-60" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-50 motion-reduce:animate-none" />
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
         </span>
         <div className="leading-tight">
-          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-400">
-            {status.open ? "Open now" : `Opens ${status.dayLabel}`}
+          <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-zinc-400 sm:text-[10px] sm:tracking-[0.24em]">
+            {status.open ? "Open Now" : `Opens ${status.dayLabel}`}
           </p>
-          <p className="font-serif text-lg text-white">
-            {status.open
-              ? `Closes at ${status.closeStr}`
-              : `Doors at ${status.openStr}`}
+          <p className="mt-1 font-serif text-base text-white sm:text-lg">
+            {status.open ? `Until ${status.closeStr}` : `From ${status.openStr}`}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4" data-testid="countdown-timer">
+      <div
+        className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap sm:gap-4"
+        data-testid="countdown-timer"
+        aria-hidden="true"
+      >
         {units.map((u, i) => (
-          <div key={u.label} className="flex items-center gap-4">
+          <div key={u.label} className="flex items-center gap-2.5 sm:gap-4">
             <Unit value={u.value} label={u.label} />
-            {i < units.length - 1 && (
-              <span className="text-zinc-700">:</span>
-            )}
+            {i < units.length - 1 && <span className="text-zinc-700" aria-hidden="true">:</span>}
           </div>
         ))}
       </div>

@@ -1,22 +1,76 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Menu, X } from "lucide-react";
 import { LINKS } from "@/data/site";
 
 const NAV = [
-  { label: "About", href: "#about" },
-  { label: "Work", href: "#work" },
+  { label: "Home", href: "#top" },
   { label: "Services", href: "#services" },
+  { label: "About", href: "#about" },
+  { label: "Gallery", href: "#work" },
   { label: "Visit", href: "#visit" },
 ];
 
 export const SiteHeader = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef(null);
+  const mobileNavRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        requestAnimationFrame(() => menuButtonRef.current?.focus());
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusable = mobileNavRef.current?.querySelectorAll(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable?.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    requestAnimationFrame(() => mobileNavRef.current?.querySelector("a")?.focus());
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const onChange = (event) => {
+      if (event.matches) setMenuOpen(false);
+    };
+
+    media.addEventListener?.("change", onChange);
+    return () => media.removeEventListener?.("change", onChange);
   }, []);
 
   const closeMenu = () => setMenuOpen(false);
@@ -26,34 +80,36 @@ export const SiteHeader = () => {
       data-testid="site-header"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         scrolled || menuOpen
-          ? "border-b border-white/10 bg-black/75 backdrop-blur-xl"
-          : "border-b border-transparent"
+          ? "bg-[#050505]/82 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
+          : "bg-gradient-to-b from-black/35 to-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4 md:px-10 md:py-5">
+      <div className="mx-auto flex max-w-[1480px] items-center justify-between px-5 py-4 sm:px-7 md:px-10 md:py-5 lg:px-12">
         <a
           href="#top"
           onClick={closeMenu}
           data-testid="brand-logo"
-          className="brand-logo-link flex items-center leading-none"
+          className="brand-logo-link flex items-center leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-black"
           aria-label="QuincyFadez Home"
         >
-          <span className="brand-metal font-['Anton'] text-2xl uppercase tracking-tight md:text-[42px]">
+          <span className="brand-metal font-['Anton'] text-[26px] uppercase tracking-[-0.035em] md:text-[34px]">
             QuincyFadez
           </span>
-          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-white/90 md:ml-2.5 md:h-2 md:w-2" />
+          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-[var(--qf-gold)] md:h-2 md:w-2" aria-hidden="true" />
         </a>
 
-        <nav className="hidden items-center gap-9 md:flex" aria-label="Primary Navigation">
-          {NAV.map((n) => (
+        <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary Navigation">
+          {NAV.map((n, index) => (
             <a
               key={n.href}
               href={n.href}
               data-testid={`nav-${n.label.toLowerCase()}`}
-              className="group relative font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:text-white"
+              className={`group relative font-mono text-[10px] uppercase tracking-[0.24em] transition-colors focus-visible:outline-none ${
+                index === 0 ? "text-[var(--qf-gold)]" : "text-zinc-300 hover:text-white focus-visible:text-white"
+              }`}
             >
               {n.label}
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-white transition-all duration-300 group-hover:w-full" />
+              <span className="absolute -bottom-1 left-0 h-px w-0 bg-[var(--qf-gold)] transition-all duration-300 group-hover:w-full group-focus-visible:w-full" />
             </a>
           ))}
         </nav>
@@ -63,46 +119,55 @@ export const SiteHeader = () => {
             href={LINKS.booking}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
             data-testid="header-book-btn"
-            className="hidden rounded-full border border-white/20 px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:text-black sm:inline-flex"
+            className="qf-gold-button hidden rounded-full px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
           >
             Book Now
           </a>
           <button
+            ref={menuButtonRef}
             type="button"
             aria-label={menuOpen ? "Close Menu" : "Open Menu"}
             aria-expanded={menuOpen}
+            aria-controls="mobile-navigation"
             onClick={() => setMenuOpen((v) => !v)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/20 text-white md:hidden"
+            className="qf-glass inline-flex h-11 w-11 items-center justify-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 lg:hidden"
           >
-            {menuOpen ? <X size={18} /> : <Menu size={18} />}
+            {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
         </div>
       </div>
 
       <div
-        className={`overflow-hidden transition-[max-height,opacity] duration-500 md:hidden ${
-          menuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        id="mobile-navigation"
+        ref={mobileNavRef}
+        aria-hidden={!menuOpen}
+        className={`overflow-hidden transition-[max-height,opacity] duration-500 lg:hidden motion-reduce:transition-none ${
+          menuOpen ? "max-h-[32rem] opacity-100" : "pointer-events-none max-h-0 opacity-0"
         }`}
       >
-        <nav className="border-t border-white/10 px-5 pb-6 pt-4" aria-label="Mobile Navigation">
+        <nav className="border-t border-white/10 bg-[#070707]/96 px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-2xl" aria-label="Mobile Navigation">
           {NAV.map((n) => (
             <a
               key={n.href}
               href={n.href}
               onClick={closeMenu}
-              className="flex items-center justify-between border-b border-white/10 py-4 font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-300"
+              tabIndex={menuOpen ? 0 : -1}
+              className="flex min-h-14 items-center justify-between border-b border-white/10 py-4 font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:text-[var(--qf-gold-soft)]"
             >
               {n.label}
-              <span>↗</span>
+              <span className="qf-gold" aria-hidden="true">↗</span>
             </a>
           ))}
           <a
             href={LINKS.booking}
             target="_blank"
             rel="noopener noreferrer"
+            aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
             onClick={closeMenu}
-            className="mt-5 flex w-full items-center justify-center rounded-full bg-white py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-black"
+            tabIndex={menuOpen ? 0 : -1}
+            className="qf-gold-button mt-5 flex w-full items-center justify-center rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
             Book Your Appointment
           </a>

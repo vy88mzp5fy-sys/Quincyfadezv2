@@ -1,112 +1,84 @@
-import { motion } from "framer-motion";
-import { Label, RevealText, FadeIn } from "@/components/site/primitives";
-import { SERVICES, MEMBERSHIP, LINKS } from "@/data/site";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowUpRight } from "lucide-react";
+import { Label, RevealText } from "@/components/site/primitives";
+import { SERVICES, LINKS } from "@/data/site";
 
 const EASE = [0.16, 1, 0.3, 1];
 
-export const ServicesMenu = () => (
-  <section
-    id="services"
-    data-testid="services-section"
-    className="mx-auto max-w-[1400px] px-6 py-28 md:px-10 md:py-40"
-  >
-    <div className="grid gap-16 lg:grid-cols-[1.5fr_1fr] lg:gap-20">
-      {/* Menu */}
-      <div>
-        <Label>The Menu</Label>
-        <h2 className="mt-6 font-serif text-4xl leading-[0.95] tracking-tight text-white md:text-6xl">
-          <RevealText lines={["Services."]} italicIdx={[0]} />
-        </h2>
+export const ServicesMenu = () => {
+  const reduceMotion = useReducedMotion();
 
-        <div className="mt-14">
-          {SERVICES.map((s, i) => (
-            <motion.a
-              key={s.name}
-              href={LINKS.booking}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid={`service-${i}`}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-10%" }}
-              transition={{ duration: 0.7, ease: EASE, delay: i * 0.06 }}
-              className="group grid grid-cols-[1fr_auto] items-baseline gap-4 border-t border-zinc-900 py-8"
-            >
-              <div>
-                <div className="flex items-center gap-4">
-                  <h3 className="font-serif text-2xl tracking-tight text-white transition-transform duration-500 group-hover:translate-x-2 md:text-3xl">
-                    {s.name}
-                  </h3>
-                  <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-600">
-                    {s.duration}
-                  </span>
-                </div>
-                <p className="mt-3 max-w-md text-sm font-light leading-relaxed text-zinc-500">
-                  {s.desc}
-                </p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="font-serif text-2xl text-white md:text-3xl">
-                  {s.price}
-                </span>
-                <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-zinc-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                  Book →
-                </span>
-              </div>
-            </motion.a>
-          ))}
-        </div>
+  return (
+    <section
+      id="services"
+      data-testid="services-section"
+      aria-labelledby="services-heading"
+      className="relative mx-auto max-w-[1400px] overflow-hidden px-5 py-24 sm:py-28 md:px-10 md:py-40"
+    >
+      <div className="pointer-events-none absolute left-1/2 top-1/3 -z-10 h-80 w-80 -translate-x-1/2 rounded-full bg-[#6f9cff]/[0.05] blur-[110px]" />
+
+      <div className="mb-12 max-w-3xl md:mb-20">
+        <Label className="text-[#d6bd7a]/80">Services</Label>
+        <h2
+          id="services-heading"
+          className="mt-6 font-serif text-[clamp(2.8rem,13vw,4.5rem)] leading-[0.9] tracking-[-0.04em] text-white md:text-7xl"
+        >
+          <RevealText lines={["Simple. Sharp. Clear."]} italicIdx={[0]} />
+        </h2>
+        <p className="mt-5 max-w-xl text-sm font-light leading-7 text-zinc-400 md:text-[15px]">
+          Choose Your Service, Pick A Time That Works, And Book In Seconds.
+        </p>
       </div>
 
-      {/* Membership card */}
-      <FadeIn className="lg:sticky lg:top-32 lg:self-start" delay={0.1}>
-        <Label>Membership</Label>
-        <div
-          data-testid="membership-card"
-          className="relative mt-6 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-zinc-900/80 to-black p-8 md:p-10"
-        >
-          <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-white/5 blur-2xl" />
-          <div className="flex items-baseline justify-between">
-            <h3 className="font-serif text-3xl italic tracking-tight text-white">
-              {MEMBERSHIP.name}
-            </h3>
-            <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500">
-              Club
-            </span>
-          </div>
-
-          <div className="mt-8 flex items-end gap-1">
-            <span className="font-serif text-6xl tracking-tighter text-white">
-              {MEMBERSHIP.price}
-            </span>
-            <span className="mb-2 font-mono text-xs uppercase tracking-[0.2em] text-zinc-500">
-              {MEMBERSHIP.cadence}
-            </span>
-          </div>
-
-          <ul className="mt-8 space-y-4 border-t border-white/10 pt-8">
-            {MEMBERSHIP.benefits.map((b) => (
-              <li
-                key={b}
-                className="flex items-start gap-3 text-sm font-light text-zinc-300"
-              >
-                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white" />
-                {b}
-              </li>
-            ))}
-          </ul>
-
-          <a
+      <div className="overflow-hidden rounded-[1.6rem] border border-white/[0.08] bg-white/[0.025]" role="list" aria-label="Available Services">
+        {SERVICES.map((service, index) => (
+          <motion.a
+            key={service.name}
             href={LINKS.booking}
             target="_blank"
             rel="noopener noreferrer"
-            data-testid="membership-join-btn"
-            className="mt-10 flex w-full items-center justify-center rounded-full bg-white py-4 font-mono text-[11px] uppercase tracking-[0.2em] text-black transition-transform duration-300 hover:scale-[1.02]"
+            role="listitem"
+            aria-label={`Book ${service.name}, ${service.price}, ${service.duration}. Opens Booking In A New Tab.`}
+            data-testid={`service-${index}`}
+            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+            whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-8%" }}
+            transition={{ duration: reduceMotion ? 0 : 0.65, ease: EASE, delay: reduceMotion ? 0 : index * 0.06 }}
+            className="group relative grid min-h-[9rem] gap-5 border-b border-white/[0.07] p-5 transition-colors duration-500 last:border-b-0 hover:bg-white/[0.04] active:bg-white/[0.05] focus-visible:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-inset sm:p-6 md:min-h-0 md:grid-cols-[1fr_auto] md:items-center md:p-8"
           >
-            Join The Club
-          </a>
-        </div>
-      </FadeIn>
-    </div>
-  </section>
-);
+            <span className="absolute inset-y-0 left-0 w-[2px] origin-bottom scale-y-0 bg-gradient-to-b from-[#6f9cff] via-[#d6bd7a] to-[#a67cff] transition-transform duration-500 group-hover:scale-y-100 group-focus-visible:scale-y-100" />
+
+            <div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.28em] text-zinc-600">
+                  0{index + 1}
+                </span>
+                <h3 className="font-serif text-2xl tracking-tight text-white transition-transform duration-500 md:text-3xl md:group-hover:translate-x-1 md:group-focus-visible:translate-x-1">
+                  {service.name}
+                </h3>
+                <span className="rounded-full border border-white/[0.08] px-3 py-1 font-mono text-[9px] uppercase tracking-[0.2em] text-zinc-500">
+                  {service.duration}
+                </span>
+              </div>
+              <p className="mt-3 max-w-xl text-sm font-light leading-6 text-zinc-400 md:text-zinc-500">
+                {service.desc}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-5 md:justify-end">
+              <span className="font-serif text-3xl tracking-tight text-white md:text-4xl">
+                {service.price}
+              </span>
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] text-zinc-400 transition-all duration-300 group-hover:border-[#d6bd7a]/40 group-hover:bg-[#d6bd7a] group-hover:text-black group-focus-visible:border-[#d6bd7a]/40 group-focus-visible:bg-[#d6bd7a] group-focus-visible:text-black"
+              >
+                <ArrowUpRight size={16} />
+              </span>
+            </div>
+          </motion.a>
+        ))}
+      </div>
+    </section>
+  );
+};

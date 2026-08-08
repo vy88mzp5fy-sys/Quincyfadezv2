@@ -92,7 +92,7 @@ export const CHAPTERS = [
   },
   {
     no: "03",
-    title: "25 · Oxford · All In",
-    body: "25 And Oxford-Based. You Leave Looking Your Best, Every Single Time. This Isn't A Job — It's The Craft I Love.",
+    title: "Built Around You",
+    body: "Every Cut Is Personal. Clean Detail, Honest Service, And A Finish That Leaves You Looking Sharp And Feeling Confident.",
   },
 ];

@@ -7,6 +7,35 @@
     linear-gradient(180deg, #050505 0%, #090909 42%, #050505 100%);
 }
 
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: 1rem;
+  z-index: 100;
+  transform: translateY(-180%);
+  border: 1px solid rgba(214, 189, 122, 0.55);
+  border-radius: 999px;
+  background: #050505;
+  padding: 0.75rem 1rem;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.625rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--qf-gold);
+  outline-offset: 3px;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
 /* Brand wordmark */
 .brand-metal {
   background: linear-gradient(
@@ -178,7 +207,8 @@
 
   .brand-logo-link .brand-dot,
   .qf-gold-button,
-  .qf-gold-button::after {
+  .qf-gold-button::after,
+  .skip-link {
     transition-duration: 0.01ms;
   }
 }

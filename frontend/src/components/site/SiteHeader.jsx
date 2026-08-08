@@ -80,8 +80,8 @@ export const SiteHeader = () => {
       data-testid="site-header"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         scrolled || menuOpen
-          ? "border-b border-white/10 bg-[#050505]/82 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
-          : "border-b border-transparent bg-gradient-to-b from-black/35 to-transparent"
+          ? "bg-[#050505]/82 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
+          : "bg-gradient-to-b from-black/35 to-transparent"
       }`}
     >
       <div className="mx-auto flex max-w-[1480px] items-center justify-between px-5 py-4 sm:px-7 md:px-10 md:py-5 lg:px-12">

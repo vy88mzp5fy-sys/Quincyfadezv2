@@ -3,9 +3,10 @@ import { Menu, X } from "lucide-react";
 import { LINKS } from "@/data/site";
 
 const NAV = [
-  { label: "Work", href: "#work" },
+  { label: "Home", href: "#top" },
   { label: "Services", href: "#services" },
   { label: "About", href: "#about" },
+  { label: "Gallery", href: "#work" },
   { label: "Visit", href: "#visit" },
 ];
 
@@ -79,34 +80,36 @@ export const SiteHeader = () => {
       data-testid="site-header"
       className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${
         scrolled || menuOpen
-          ? "border-b border-white/10 bg-[#050505]/78 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
-          : "border-b border-transparent"
+          ? "border-b border-white/10 bg-[#050505]/82 shadow-[0_12px_50px_rgba(0,0,0,0.28)] backdrop-blur-2xl"
+          : "border-b border-transparent bg-gradient-to-b from-black/35 to-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4 md:px-10 md:py-5">
+      <div className="mx-auto flex max-w-[1480px] items-center justify-between px-5 py-4 sm:px-7 md:px-10 md:py-5 lg:px-12">
         <a
           href="#top"
           onClick={closeMenu}
           data-testid="brand-logo"
-          className="brand-logo-link flex items-center leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-black"
+          className="flex items-center leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-black"
           aria-label="QuincyFadez Home"
         >
-          <span className="brand-metal font-['Anton'] text-2xl uppercase tracking-tight md:text-[42px]">
-            QuincyFadez
+          <span className="font-['Anton'] text-[26px] uppercase tracking-[-0.035em] text-white md:text-[34px]">
+            Quincy<span className="text-[var(--qf-gold)]">Fadez</span>
           </span>
-          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-[var(--qf-gold)] md:ml-2.5 md:h-2 md:w-2" />
+          <span className="ml-2 text-[var(--qf-gold)]" aria-hidden="true">◆</span>
         </a>
 
-        <nav className="hidden items-center gap-9 md:flex" aria-label="Primary Navigation">
-          {NAV.map((n) => (
+        <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary Navigation">
+          {NAV.map((n, index) => (
             <a
               key={n.href}
               href={n.href}
               data-testid={`nav-${n.label.toLowerCase()}`}
-              className="group relative font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:text-white"
+              className={`group relative font-mono text-[10px] uppercase tracking-[0.24em] transition-colors focus-visible:outline-none ${
+                index === 0 ? "text-[var(--qf-gold)]" : "text-zinc-300 hover:text-white focus-visible:text-white"
+              }`}
             >
               {n.label}
-              <span className="absolute -bottom-1 left-0 h-px w-0 bg-gradient-to-r from-[var(--qf-gold)] via-[var(--qf-blue)] to-[var(--qf-violet)] transition-all duration-300 group-hover:w-full group-focus-visible:w-full" />
+              <span className="absolute -bottom-1 left-0 h-px w-0 bg-[var(--qf-gold)] transition-all duration-300 group-hover:w-full group-focus-visible:w-full" />
             </a>
           ))}
         </nav>
@@ -118,7 +121,7 @@ export const SiteHeader = () => {
             rel="noopener noreferrer"
             aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
             data-testid="header-book-btn"
-            className="qf-gold-button hidden rounded-full px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
+            className="hidden min-h-11 items-center rounded-full border border-[var(--qf-gold)]/70 bg-black/10 px-6 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--qf-gold-soft)] transition-all hover:bg-[var(--qf-gold)] hover:text-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
           >
             Book Now
           </a>
@@ -129,7 +132,7 @@ export const SiteHeader = () => {
             aria-expanded={menuOpen}
             aria-controls="mobile-navigation"
             onClick={() => setMenuOpen((v) => !v)}
-            className="qf-glass inline-flex h-11 w-11 items-center justify-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 md:hidden"
+            className="qf-glass inline-flex h-11 w-11 items-center justify-center rounded-full text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 lg:hidden"
           >
             {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
           </button>
@@ -140,7 +143,7 @@ export const SiteHeader = () => {
         id="mobile-navigation"
         ref={mobileNavRef}
         aria-hidden={!menuOpen}
-        className={`overflow-hidden transition-[max-height,opacity] duration-500 md:hidden motion-reduce:transition-none ${
+        className={`overflow-hidden transition-[max-height,opacity] duration-500 lg:hidden motion-reduce:transition-none ${
           menuOpen ? "max-h-[32rem] opacity-100" : "pointer-events-none max-h-0 opacity-0"
         }`}
       >

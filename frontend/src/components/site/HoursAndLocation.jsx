@@ -10,7 +10,7 @@ const isOpenToday = (day) =>
   }).format(new Date()) === day;
 
 const MAP_EMBED =
-  "https://www.google.com/maps?q=8%20Gillians%20Way%2C%20Oxford%20OX4%202YD&z=15&output=embed";
+  "https://www.google.com/maps?output=embed&ll=51.7402247,-1.2202434&z=16";
 
 export const HoursAndLocation = () => (
   <section

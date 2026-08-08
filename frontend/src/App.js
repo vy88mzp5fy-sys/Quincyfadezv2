@@ -3,7 +3,6 @@ import Lenis from "lenis";
 import "@/App.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { HeroSection } from "@/components/site/HeroSection";
-import { EditorialMarquee } from "@/components/site/EditorialMarquee";
 import { TrustStrip } from "@/components/site/TrustStrip";
 import { AboutManifesto } from "@/components/site/AboutManifesto";
 import { WorkGallery } from "@/components/site/WorkGallery";
@@ -82,7 +81,6 @@ function App() {
       <main id="main-content" tabIndex="-1">
         <HeroSection />
         <TrustStrip />
-        <EditorialMarquee />
         <WorkGallery />
         <ServicesMenu />
         <AboutManifesto />

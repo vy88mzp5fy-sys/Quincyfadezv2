@@ -89,13 +89,13 @@ export const SiteHeader = () => {
           href="#top"
           onClick={closeMenu}
           data-testid="brand-logo"
-          className="flex items-center leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-black"
+          className="brand-logo-link flex items-center leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70 focus-visible:ring-offset-4 focus-visible:ring-offset-black"
           aria-label="QuincyFadez Home"
         >
-          <span className="font-['Anton'] text-[26px] uppercase tracking-[-0.035em] text-white md:text-[34px]">
-            Quincy<span className="text-[var(--qf-gold)]">Fadez</span>
+          <span className="brand-metal font-['Anton'] text-[26px] uppercase tracking-[-0.035em] md:text-[34px]">
+            QuincyFadez
           </span>
-          <span className="ml-2 text-[var(--qf-gold)]" aria-hidden="true">◆</span>
+          <span className="brand-dot ml-2 h-1.5 w-1.5 rounded-full bg-[var(--qf-gold)] md:h-2 md:w-2" aria-hidden="true" />
         </a>
 
         <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary Navigation">

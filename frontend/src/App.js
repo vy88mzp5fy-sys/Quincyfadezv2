@@ -9,7 +9,6 @@ import { AboutManifesto } from "@/components/site/AboutManifesto";
 import { WorkGallery } from "@/components/site/WorkGallery";
 import { ServicesMenu } from "@/components/site/ServicesMenu";
 import { HoursAndLocation } from "@/components/site/HoursAndLocation";
-import { BookingCTA } from "@/components/site/BookingCTA";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { WhatsAppFloat } from "@/components/site/WhatsAppFloat";
 
@@ -62,7 +61,6 @@ function App() {
         <ServicesMenu />
         <AboutManifesto />
         <HoursAndLocation />
-        <BookingCTA />
       </main>
       <SiteFooter />
       <WhatsAppFloat />

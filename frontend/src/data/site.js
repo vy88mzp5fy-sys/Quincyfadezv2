@@ -69,17 +69,6 @@ export const SERVICES = [
   },
 ];
 
-export const MEMBERSHIP = {
-  name: "VIP x4",
-  price: "£64",
-  cadence: "/ month",
-  benefits: [
-    "Up to 4 haircuts each month",
-    "7-day cooldown between bookings",
-    "Renews every 30 days · cancel anytime",
-  ],
-};
-
 export const HOURS = [
   { day: "Monday", time: "17:45 – 22:00" },
   { day: "Tuesday", time: "17:45 – 22:00" },

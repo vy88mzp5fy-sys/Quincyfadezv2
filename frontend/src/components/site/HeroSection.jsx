@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowDownRight, Sparkles } from "lucide-react";
 import { RevealText, BookButton } from "@/components/site/primitives";
@@ -8,6 +8,7 @@ const EASE = [0.16, 1, 0.3, 1];
 
 export const HeroSection = () => {
   const ref = useRef(null);
+  const videoRef = useRef(null);
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -17,6 +18,27 @@ export const HeroSection = () => {
   const mediaScale = useTransform(scrollYProgress, [0, 1], [1.02, 1.1]);
   const textY = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
   const fade = useTransform(scrollYProgress, [0, 0.72], [1, 0]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || reduceMotion) return;
+
+    const syncPlayback = () => {
+      if (document.hidden) {
+        video.pause();
+        return;
+      }
+
+      video.play().catch(() => {
+        // Autoplay can be blocked by browser policy; the poster remains visible.
+      });
+    };
+
+    document.addEventListener("visibilitychange", syncPlayback);
+    syncPlayback();
+
+    return () => document.removeEventListener("visibilitychange", syncPlayback);
+  }, [reduceMotion]);
 
   return (
     <section
@@ -30,10 +52,12 @@ export const HeroSection = () => {
         className="absolute inset-0"
       >
         <video
+          ref={videoRef}
           autoPlay={!reduceMotion}
           muted
           loop
           playsInline
+          disablePictureInPicture
           poster={GALLERY[0].thumb}
           preload="metadata"
           aria-hidden="true"
@@ -112,10 +136,10 @@ export const HeroSection = () => {
             </BookButton>
             <a
               href="#work"
-              className="qf-glass inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10 sm:w-auto"
+              className="qf-glass inline-flex w-full items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/75 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:w-auto"
             >
               View My Work
-              <ArrowDownRight size={14} />
+              <ArrowDownRight size={14} aria-hidden="true" />
             </a>
           </div>
         </motion.div>
@@ -123,11 +147,12 @@ export const HeroSection = () => {
 
       <motion.a
         href="#work"
+        aria-label="Scroll To Work Gallery"
         style={reduceMotion ? undefined : { opacity: fade }}
-        className="absolute bottom-7 left-10 z-10 hidden items-center gap-3 font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-400 md:flex"
+        className="absolute bottom-7 left-10 z-10 hidden items-center gap-3 font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-400 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/75 focus-visible:ring-offset-4 focus-visible:ring-offset-black md:flex"
       >
         Scroll To Explore
-        <span className="h-px w-12 bg-gradient-to-r from-[var(--qf-gold)] to-transparent" />
+        <span className="h-px w-12 bg-gradient-to-r from-[var(--qf-gold)] to-transparent" aria-hidden="true" />
       </motion.a>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
-import { ArrowDownRight, Sparkles } from "lucide-react";
+import { ArrowDownRight } from "lucide-react";
 import { RevealText, BookButton } from "@/components/site/primitives";
 import { HERO_MEDIA } from "@/data/site";
 
@@ -91,28 +91,18 @@ export const HeroSection = () => {
         style={reduceMotion ? undefined : { y: textY, opacity: fade }}
         className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1400px] flex-col justify-end px-5 pb-16 pt-32 md:px-10 md:pb-24"
       >
-        <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.85, ease: EASE, delay: 0.12 }}
-          className="mb-6 inline-flex w-fit items-center gap-3 rounded-full border border-white/10 bg-black/25 px-4 py-2 font-mono text-[9px] uppercase tracking-[0.32em] text-zinc-200 backdrop-blur-md md:mb-8 md:text-[10px]"
-        >
-          <Sparkles size={12} className="qf-gold" />
-          Premium Barbering In Oxford
-        </motion.div>
-
         <h1 className="max-w-6xl font-serif text-[clamp(4.15rem,16.5vw,7.75rem)] leading-[0.82] tracking-[-0.06em] text-white md:text-[clamp(5.5rem,9.4vw,9.5rem)]">
           <RevealText
             lines={["Precision In", "Every Detail."]}
             italicIdx={[1]}
-            delay={reduceMotion ? 0 : 0.24}
+            delay={reduceMotion ? 0 : 0.12}
           />
         </h1>
 
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.95, ease: EASE, delay: 0.9 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.95, ease: EASE, delay: 0.72 }}
           className="mt-8 flex flex-col gap-7 md:mt-10 md:flex-row md:items-end md:justify-between"
         >
           <div className="max-w-xl">

@@ -94,16 +94,30 @@ export const HoursAndLocation = () => (
                 className="h-72 w-full border-0 opacity-75 grayscale transition-[opacity,filter] duration-700 motion-reduce:transition-none sm:h-80 md:h-[420px] lg:group-hover:opacity-90 lg:group-hover:grayscale-[35%]"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+              <div
+                className="pointer-events-none absolute left-0 top-0 h-16 w-44 bg-gradient-to-br from-[#080808] via-[#080808]/95 to-transparent sm:h-20 sm:w-52"
+                aria-hidden="true"
+              />
               <div className="pointer-events-none absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[var(--qf-gold)] backdrop-blur-md sm:left-5 sm:top-5">
                 <MapPin size={18} aria-hidden="true" />
               </div>
-              <div className="pointer-events-none absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5">
-                <div className="max-w-[18rem]">
+              <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-4 sm:bottom-5 sm:left-5 sm:right-5 sm:flex-row sm:items-end sm:justify-between">
+                <div className="pointer-events-none max-w-[18rem]">
                   <p className="font-serif text-lg leading-tight text-white sm:text-xl md:text-2xl">{LINKS.address}</p>
                   <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.22em] text-zinc-400 sm:text-[9px] sm:tracking-[0.25em]">
                     Oxford · QuincyFadez
                   </p>
                 </div>
+                <a
+                  href={LINKS.directions}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Get Directions To QuincyFadez In Google Maps, Opens In A New Tab"
+                  data-testid="map-link"
+                  className="inline-flex min-h-11 w-fit items-center rounded-full border border-white/15 bg-black/70 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-white backdrop-blur-md transition-all duration-300 hover:border-[var(--qf-gold)]/50 hover:text-[var(--qf-gold-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/75 focus-visible:ring-offset-2 focus-visible:ring-offset-black motion-reduce:transition-none"
+                >
+                  Get Directions ↗
+                </a>
               </div>
             </div>
           </FadeIn>

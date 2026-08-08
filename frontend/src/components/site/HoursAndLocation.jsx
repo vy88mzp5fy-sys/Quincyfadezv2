@@ -4,7 +4,10 @@ import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { HOURS, LINKS } from "@/data/site";
 
 const isOpenToday = (day) =>
-  new Date().toLocaleDateString("en-GB", { weekday: "long" }) === day;
+  new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    timeZone: "Europe/London",
+  }).format(new Date()) === day;
 
 const MAP_EMBED =
   "https://www.google.com/maps?q=8%20Gillians%20Way%2C%20Oxford%20OX4%202YD&z=15&output=embed";
@@ -48,7 +51,7 @@ export const HoursAndLocation = () => (
                     {h.day}
                     {open && (
                       <span className="ml-3 inline-flex items-center gap-1.5 align-middle font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--qf-gold)]">
-                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--qf-gold)]" />
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--qf-gold)] motion-reduce:animate-none" aria-hidden="true" />
                         Today
                       </span>
                     )}

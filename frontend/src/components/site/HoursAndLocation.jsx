@@ -94,10 +94,6 @@ export const HoursAndLocation = () => (
                 className="h-72 w-full border-0 opacity-75 grayscale transition-[opacity,filter] duration-700 motion-reduce:transition-none sm:h-80 md:h-[420px] lg:group-hover:opacity-90 lg:group-hover:grayscale-[35%]"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-              <div
-                className="pointer-events-none absolute left-0 top-0 h-16 w-44 bg-gradient-to-br from-[#080808] via-[#080808]/95 to-transparent sm:h-20 sm:w-52"
-                aria-hidden="true"
-              />
               <div className="pointer-events-none absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-[var(--qf-gold)] backdrop-blur-md sm:left-5 sm:top-5">
                 <MapPin size={18} aria-hidden="true" />
               </div>

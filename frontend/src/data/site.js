@@ -17,10 +17,20 @@ const MEDIA_IDS = [
   "534917f9-0536-445d-a979-82f12cafcd75",
 ];
 
-export const GALLERY = MEDIA_IDS.map((id) => ({
+const mediaFromId = (id) => ({
   thumb: `${CDN}/${id}/thumbnail.jpg`,
   video: `${CDN}/${id}/play_720p.mp4`,
-}));
+});
+
+export const HERO_MEDIA = mediaFromId(MEDIA_IDS[0]);
+
+export const GALLERY = [
+  {
+    thumb: "/media/gallery-replacement-01.jpg",
+    video: "/media/gallery-replacement-01.mp4",
+  },
+  ...MEDIA_IDS.slice(1).map(mediaFromId),
+];
 
 export const SERVICES = [
   {

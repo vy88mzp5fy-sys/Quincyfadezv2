@@ -35,7 +35,10 @@ export const GALLERY = [
     thumb: "/media/work-04-replacement.jpg",
     video: "/media/work-04-replacement.mp4",
   },
-  mediaFromId(MEDIA_IDS[4]),
+  {
+    thumb: "/media/work-05-replacement.jpg",
+    video: "/media/work-05-replacement.mp4",
+  },
   mediaFromId(MEDIA_IDS[5]),
 ];
 

@@ -1,4 +1,3 @@
-import { MapPin } from "lucide-react";
 import { Label, RevealText, FadeIn } from "@/components/site/primitives";
 import { OpeningCountdown } from "@/components/site/OpeningCountdown";
 import { HOURS, LINKS } from "@/data/site";
@@ -10,7 +9,7 @@ const isOpenToday = (day) =>
   }).format(new Date()) === day;
 
 const MAP_EMBED =
-  "https://www.google.com/maps?output=embed&ll=51.7402247,-1.2202434&z=16";
+  "https://www.google.com/maps?q=8%20Gillians%20Way%2C%20Oxford%20OX4%202YD&z=16&output=embed";
 
 export const HoursAndLocation = () => (
   <section
@@ -94,16 +93,6 @@ export const HoursAndLocation = () => (
                 className="h-72 w-full border-0 opacity-75 grayscale transition-[opacity,filter] duration-700 motion-reduce:transition-none sm:h-80 md:h-[420px] lg:group-hover:opacity-90 lg:group-hover:grayscale-[35%]"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
-
-              <div
-                className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full"
-                aria-hidden="true"
-              >
-                <div className="absolute left-1/2 top-full h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[var(--qf-gold)]/35 bg-[var(--qf-gold)]/10" />
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-full border border-[var(--qf-gold)]/70 bg-black/85 text-[var(--qf-gold)] shadow-[0_10px_28px_rgba(0,0,0,0.45)] backdrop-blur-md">
-                  <MapPin size={22} strokeWidth={2} />
-                </div>
-              </div>
 
               <div className="absolute bottom-4 left-4 right-4 flex flex-col gap-4 sm:bottom-5 sm:left-5 sm:right-5 sm:flex-row sm:items-end sm:justify-between">
                 <div className="pointer-events-none max-w-[18rem]">

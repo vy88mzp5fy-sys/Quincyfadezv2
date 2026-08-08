@@ -100,6 +100,9 @@ export const HoursAndLocation = () => (
                   <p className="mt-1 font-mono text-[8px] uppercase tracking-[0.22em] text-zinc-400 sm:text-[9px] sm:tracking-[0.25em]">
                     Oxford · QuincyFadez
                   </p>
+                  <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.2em] text-[var(--qf-gold)] sm:text-[10px]">
+                    Appointment Only · No Walk-Ins
+                  </p>
                 </div>
                 <a
                   href={LINKS.directions}

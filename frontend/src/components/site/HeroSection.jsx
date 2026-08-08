@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowDownRight, Sparkles } from "lucide-react";
 import { RevealText, BookButton } from "@/components/site/primitives";
-import { GALLERY } from "@/data/site";
+import { HERO_MEDIA } from "@/data/site";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -58,12 +58,12 @@ export const HeroSection = () => {
           loop
           playsInline
           disablePictureInPicture
-          poster={GALLERY[0].thumb}
+          poster={HERO_MEDIA.thumb}
           preload="metadata"
           aria-hidden="true"
           className="h-full w-full object-cover object-center"
         >
-          <source src={GALLERY[0].video} type="video/mp4" />
+          <source src={HERO_MEDIA.video} type="video/mp4" />
         </video>
 
         <div className="absolute inset-0 bg-black/38" />

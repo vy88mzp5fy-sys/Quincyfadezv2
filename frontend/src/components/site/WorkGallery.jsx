@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { Instagram, Pause, Play } from "lucide-react";
 import { Label, RevealText } from "@/components/site/primitives";
@@ -17,6 +17,7 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
   const ref = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const reduceMotion = useReducedMotion();
 
   const { scrollYProgress } = useScroll({
@@ -31,18 +32,42 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
     reduceMotion ? ["0px", "0px"] : [`${18 * dir}px`, `${-18 * dir}px`],
   );
 
-  const play = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    video.play().then(() => setPlaying(true)).catch(() => {});
-  };
-
   const pause = () => {
     const video = videoRef.current;
     if (!video) return;
     video.pause();
     setPlaying(false);
   };
+
+  const play = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.play().then(() => setPlaying(true)).catch(() => {});
+  };
+
+  useEffect(() => {
+    const tile = ref.current;
+    if (!tile || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) pause();
+      },
+      { rootMargin: "120px 0px", threshold: 0.01 },
+    );
+
+    observer.observe(tile);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.hidden) pause();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   const toggle = () => {
     if (playing) pause();
@@ -68,9 +93,14 @@ const ParallaxTile = ({ item, index, className = "", featured = false }) => {
           muted
           loop
           playsInline
-          preload="metadata"
+          preload={featured ? "metadata" : "none"}
+          onLoadedData={() => setLoaded(true)}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
           aria-hidden="true"
-          className="h-full w-full object-cover saturate-[0.86] contrast-[1.04] transition-[filter,transform] duration-700 ease-out group-hover:saturate-110"
+          className={`h-full w-full object-cover saturate-[0.86] contrast-[1.04] transition-[filter,opacity,transform] duration-700 ease-out group-hover:saturate-110 ${
+            loaded ? "opacity-100" : "opacity-90"
+          }`}
         >
           <source src={item.video} type="video/mp4" />
         </video>
@@ -107,13 +137,14 @@ export const WorkGallery = () => (
   <section
     id="work"
     data-testid="work-section"
-    className="qf-ambient relative overflow-hidden border-t border-white/[0.06] bg-[#080808] py-28 md:py-40"
+    className="qf-ambient relative overflow-hidden border-t border-white/[0.06] bg-[#080808] py-24 md:py-40"
+    aria-labelledby="work-heading"
   >
     <div className="mx-auto max-w-[1400px] px-5 md:px-10">
-      <div className="mb-14 grid gap-8 md:mb-20 md:grid-cols-[1fr_auto] md:items-end">
+      <div className="mb-12 grid gap-8 md:mb-20 md:grid-cols-[1fr_auto] md:items-end">
         <div>
           <Label className="text-[#d6bd7a]/80">The Work</Label>
-          <h2 className="mt-6 max-w-3xl font-serif text-5xl leading-[0.9] tracking-[-0.04em] text-white md:text-7xl">
+          <h2 id="work-heading" className="mt-6 max-w-3xl font-serif text-[clamp(3.2rem,13vw,5rem)] leading-[0.9] tracking-[-0.04em] text-white md:text-7xl">
             <RevealText lines={["See The Standard."]} italicIdx={[0]} />
           </h2>
           <p className="mt-5 max-w-lg text-sm font-light leading-7 text-zinc-400 md:text-[15px]">
@@ -125,8 +156,9 @@ export const WorkGallery = () => (
           href={LINKS.instagram}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="View QuincyFadez On Instagram, Opens In A New Tab"
           data-testid="gallery-instagram-link"
-          className="qf-glass group inline-flex w-fit items-center gap-3 rounded-full px-5 py-3 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d6bd7a]/40 hover:text-white"
+          className="qf-glass group inline-flex w-fit items-center gap-3 rounded-full px-5 py-3 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d6bd7a]/40 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
           <Instagram size={14} />
           View Instagram
@@ -139,7 +171,7 @@ export const WorkGallery = () => (
           if (index === 0) {
             return (
               <ParallaxTile
-                key={index}
+                key={item.video || index}
                 item={item}
                 index={index}
                 featured
@@ -150,7 +182,7 @@ export const WorkGallery = () => (
 
           return (
             <ParallaxTile
-              key={index}
+              key={item.video || index}
               item={item}
               index={index}
               className={`aspect-[4/5] md:col-span-5 ${index > 2 ? "md:col-span-4 md:aspect-square" : "md:min-h-[350px]"}`}

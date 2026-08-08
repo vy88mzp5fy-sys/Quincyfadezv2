@@ -10,27 +10,25 @@ const WORDS = [
 export const EditorialMarquee = () => (
   <section
     data-testid="marquee"
-    className="relative overflow-hidden border-y border-white/10 bg-[#080808] py-6 sm:py-7 md:py-9"
-    aria-hidden="true"
+    className="relative border-y border-white/10 bg-[#080808] px-5 py-5 sm:px-8 sm:py-6 md:px-10"
+    aria-label="Barbering Specialties"
   >
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(111,156,255,0.06),transparent_30%,transparent_70%,rgba(166,124,255,0.06))]" />
-    <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#080808] to-transparent sm:w-16 md:w-24" />
-    <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#080808] to-transparent sm:w-16 md:w-24" />
+    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(111,156,255,0.035),transparent_28%,transparent_72%,rgba(166,124,255,0.035))]" />
 
-    <div className="marquee relative">
-      <div className="marquee__track will-change-transform">
-        {[...WORDS, ...WORDS, ...WORDS].map((w, i) => (
-          <span
-            key={`${w}-${i}`}
-            className="marquee__item font-serif italic tracking-[-0.03em]"
-          >
-            {w}
-            <span className="mx-6 not-italic text-[var(--qf-gold)] opacity-65 sm:mx-8 md:mx-12">
-              ✦
-            </span>
+    <div className="relative mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-7 md:justify-between md:gap-x-8">
+      {WORDS.map((word, index) => (
+        <div key={word} className="flex items-center gap-5 sm:gap-7 md:gap-8">
+          <span className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.22em] text-zinc-400 sm:text-[10px]">
+            {word}
           </span>
-        ))}
-      </div>
+          {index < WORDS.length - 1 && (
+            <span
+              className="hidden h-1 w-1 rounded-full bg-[var(--qf-gold)] opacity-70 md:block"
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      ))}
     </div>
   </section>
 );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { HOURS } from "@/data/site";
 
 const TIME_ZONE = "Europe/London";
@@ -106,11 +106,11 @@ function breakdown(ms) {
 }
 
 const Unit = ({ value, label }) => (
-  <span className="flex items-baseline gap-1">
-    <span className="font-mono text-xl tabular-nums text-white md:text-2xl">
+  <span className="flex min-w-0 items-baseline gap-1">
+    <span className="font-mono text-lg tabular-nums text-white sm:text-xl md:text-2xl">
       {String(value).padStart(2, "0")}
     </span>
-    <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">
+    <span className="font-mono text-[8px] uppercase tracking-widest text-zinc-500 sm:text-[9px]">
       {label}
     </span>
   </span>
@@ -118,10 +118,20 @@ const Unit = ({ value, label }) => (
 
 export const OpeningCountdown = () => {
   const [now, setNow] = useState(() => new Date());
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
+    const tick = () => setNow(new Date());
+    const id = setInterval(tick, 30000);
+    const onVisibilityChange = () => {
+      if (!document.hidden) tick();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const status = computeStatus(now);
@@ -133,18 +143,23 @@ export const OpeningCountdown = () => {
   units.push({ value: h, label: "Hrs" });
   units.push({ value: m, label: "Min" });
 
+  const statusText = status.open
+    ? `Open now until ${status.closeStr}`
+    : `Opens ${status.dayLabel} from ${status.openStr}`;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       data-testid="opening-countdown"
-      className="qf-glass flex flex-col gap-5 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+      className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"
+      aria-label={statusText}
     >
       <div className="flex items-center gap-3">
         <span
-          className={`relative flex h-2.5 w-2.5 ${
+          className={`relative flex h-2.5 w-2.5 shrink-0 ${
             status.open ? "text-emerald-400" : "text-amber-300"
           }`}
           aria-hidden="true"
@@ -153,22 +168,22 @@ export const OpeningCountdown = () => {
           <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
         </span>
         <div className="leading-tight">
-          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-400">
+          <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-zinc-400 sm:text-[10px] sm:tracking-[0.24em]">
             {status.open ? "Open Now" : `Opens ${status.dayLabel}`}
           </p>
-          <p className="mt-1 font-serif text-lg text-white">
+          <p className="mt-1 font-serif text-base text-white sm:text-lg">
             {status.open ? `Until ${status.closeStr}` : `From ${status.openStr}`}
           </p>
         </div>
       </div>
 
       <div
-        className="flex items-center gap-3 sm:gap-4"
+        className="flex flex-wrap items-center gap-2.5 sm:flex-nowrap sm:gap-4"
         data-testid="countdown-timer"
-        aria-label={`Time until ${status.open ? "closing" : "opening"}`}
+        aria-hidden="true"
       >
         {units.map((u, i) => (
-          <div key={u.label} className="flex items-center gap-3 sm:gap-4">
+          <div key={u.label} className="flex items-center gap-2.5 sm:gap-4">
             <Unit value={u.value} label={u.label} />
             {i < units.length - 1 && <span className="text-zinc-700" aria-hidden="true">:</span>}
           </div>

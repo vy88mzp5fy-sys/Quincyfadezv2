@@ -70,6 +70,38 @@ function Header({ title, onBack }) {
   );
 }
 
+function BottomNav({ screen, onHome, onBook, onGallery, onReviews }) {
+  const items = [
+    { key: "home", icon: "⌂", label: "Home", action: onHome },
+    { key: "booking", icon: "＋", label: "Book", action: onBook },
+    { key: "gallery", icon: "▣", label: "Gallery", action: onGallery },
+    { key: "reviews", icon: "★", label: "Reviews", action: onReviews },
+  ];
+
+  return (
+    <View style={styles.bottomNavWrap}>
+      <View style={styles.bottomNav}>
+        {items.map((item) => {
+          const active = screen === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              onPress={item.action}
+              style={({ pressed }) => [styles.navItem, pressed && styles.navPressed]}
+            >
+              <View style={[styles.navIconWrap, active && styles.navIconWrapActive]}>
+                <Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text>
+              </View>
+              <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+              {active ? <View style={styles.navIndicator} /> : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 function ServicesScreen({ onBack, onBook }) {
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -213,33 +245,52 @@ export default function App() {
     setScreen("booking");
   };
 
-  if (screen === "services") {
-    return <ServicesScreen onBack={() => setScreen("home")} onBook={openBooking} />;
-  }
+  const renderScreen = () => {
+    if (screen === "services") {
+      return <ServicesScreen onBack={() => setScreen("home")} onBook={openBooking} />;
+    }
 
-  if (screen === "booking") {
-    return <BookingScreen initialService={bookingService} onBack={() => setScreen("home")} />;
-  }
+    if (screen === "booking") {
+      return <BookingScreen initialService={bookingService} onBack={() => setScreen("home")} />;
+    }
 
-  if (screen === "gallery") {
-    return <GalleryScreen onBack={() => setScreen("home")} />;
-  }
+    if (screen === "gallery") {
+      return <GalleryScreen onBack={() => setScreen("home")} />;
+    }
 
-  if (screen === "reviews") {
-    return <ReviewsScreen onBack={() => setScreen("home")} />;
-  }
+    if (screen === "reviews") {
+      return <ReviewsScreen onBack={() => setScreen("home")} />;
+    }
+
+    return (
+      <HomeScreen
+        onServices={() => setScreen("services")}
+        onBooking={openBooking}
+        onGallery={() => setScreen("gallery")}
+        onReviews={() => setScreen("reviews")}
+      />
+    );
+  };
 
   return (
-    <HomeScreen
-      onServices={() => setScreen("services")}
-      onBooking={openBooking}
-      onGallery={() => setScreen("gallery")}
-      onReviews={() => setScreen("reviews")}
-    />
+    <View style={styles.appShell}>
+      <View style={styles.screenStage}>{renderScreen()}</View>
+      {screen !== "services" ? (
+        <BottomNav
+          screen={screen}
+          onHome={() => setScreen("home")}
+          onBook={() => openBooking(bookingService)}
+          onGallery={() => setScreen("gallery")}
+          onReviews={() => setScreen("reviews")}
+        />
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  appShell: { flex: 1, backgroundColor: BG },
+  screenStage: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: BG },
   screen: { flex: 1, backgroundColor: BG },
   homeContent: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 42 },
@@ -308,4 +359,15 @@ const styles = StyleSheet.create({
   noticeCard: { marginTop: 18, borderRadius: 16, borderWidth: 1, borderColor: "#332817", backgroundColor: "#0B0906", padding: 16 },
   noticeTitle: { color: GOLD_LIGHT, fontSize: 9, letterSpacing: 1.3, fontWeight: "700" },
   noticeText: { color: "#A5A098", fontSize: 11, lineHeight: 18, marginTop: 8 },
+  bottomNavWrap: { backgroundColor: BG, borderTopWidth: 1, borderTopColor: "#171717", paddingHorizontal: 12, paddingTop: 7, paddingBottom: 7 },
+  bottomNav: { minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderRadius: 20, backgroundColor: "#0A0A0A", borderWidth: 1, borderColor: "#202020", paddingHorizontal: 5 },
+  navItem: { flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", position: "relative" },
+  navPressed: { opacity: 0.72 },
+  navIconWrap: { width: 28, height: 25, alignItems: "center", justifyContent: "center", borderRadius: 10 },
+  navIconWrapActive: { backgroundColor: "#181207", borderWidth: 1, borderColor: "#4D3B1E" },
+  navIcon: { color: "#777", fontSize: 17, lineHeight: 19 },
+  navIconActive: { color: GOLD_LIGHT },
+  navLabel: { color: "#777", fontSize: 8, letterSpacing: 0.7, marginTop: 2, fontWeight: "600" },
+  navLabelActive: { color: "#EFE5D3" },
+  navIndicator: { position: "absolute", bottom: 1, width: 18, height: 2, borderRadius: 2, backgroundColor: GOLD },
 });

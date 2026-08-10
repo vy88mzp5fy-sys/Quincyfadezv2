@@ -35,7 +35,7 @@ async function findQuincyFadez(apiKey) {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.googleMapsUri",
+        "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.googleMapsUri,places.reviews",
       "Accept-Language": "en-GB",
     },
     body: JSON.stringify({
@@ -93,6 +93,8 @@ export default async function handler(req, res) {
       ? await getPlace(apiKey, configuredPlaceId)
       : { ok: false, status: 404, details: "No configured Place ID." };
 
+    let searchMatch = null;
+
     // Address Place IDs can resolve successfully but contain no business profile or reviews.
     // In that case, search for the actual QuincyFadez business listing instead.
     if (!placeResult.ok || !isQuincyFadezBusiness(placeResult.place)) {
@@ -110,6 +112,7 @@ export default async function handler(req, res) {
         return res.status(502).json({ error: "Unable to load Google reviews." });
       }
 
+      searchMatch = searchResult.match;
       placeResult = await getPlace(apiKey, searchResult.placeId);
     }
 
@@ -119,7 +122,22 @@ export default async function handler(req, res) {
     }
 
     const place = placeResult.place;
-    const reviews = (place.reviews || []).map((review) => ({
+    let reviewSource = place.reviews || [];
+
+    // Some listings return rating/count from Place Details while omitting the review objects.
+    // Ask Text Search for the same business and use its reviews when available.
+    if (reviewSource.length === 0 && (place.userRatingCount || 0) > 0) {
+      if (!searchMatch) {
+        const reviewSearch = await findQuincyFadez(apiKey);
+        if (reviewSearch.ok) searchMatch = reviewSearch.match;
+      }
+
+      if (searchMatch?.reviews?.length) {
+        reviewSource = searchMatch.reviews;
+      }
+    }
+
+    const reviews = reviewSource.map((review) => ({
       id: review.name,
       rating: review.rating,
       text: review.text?.text || "",
@@ -137,12 +155,12 @@ export default async function handler(req, res) {
 
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).json({
-      placeId: place.id || null,
-      name: place.displayName?.text || "QuincyFadez",
-      address: place.formattedAddress || null,
-      rating: place.rating || null,
-      reviewCount: place.userRatingCount || 0,
-      googleMapsUrl: place.googleMapsUri || null,
+      placeId: place.id || searchMatch?.id || null,
+      name: place.displayName?.text || searchMatch?.displayName?.text || "QuincyFadez",
+      address: place.formattedAddress || searchMatch?.formattedAddress || null,
+      rating: place.rating || searchMatch?.rating || null,
+      reviewCount: place.userRatingCount || searchMatch?.userRatingCount || 0,
+      googleMapsUrl: place.googleMapsUri || searchMatch?.googleMapsUri || null,
       orderingNotice: "Reviews are supplied by Google Maps and ordered by Google relevance.",
       reviews,
     });

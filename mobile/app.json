@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "QuincyFadez",
+    "slug": "quincyfadez",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "quincyfadez",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.quincyfadez.app"
+    },
+    "android": {
+      "package": "com.quincyfadez.app"
+    }
+  }
+}

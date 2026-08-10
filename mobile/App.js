@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Image,
   Linking,
@@ -28,30 +28,121 @@ const links = {
   website: "https://quincyfadez.com",
 };
 
-const quickActions = [
-  { icon: "✂", label: "Services", url: "https://quincyfadez.com/#services" },
-  { icon: "▣", label: "Gallery", url: links.gallery },
-  { icon: "★", label: "Reviews", url: links.reviews },
-  { icon: "◉", label: "WhatsApp", url: links.whatsapp },
-  { icon: "⌖", label: "Directions", url: links.directions },
-  { icon: "↗", label: "Website", url: links.website },
+const services = [
+  {
+    name: "Haircut",
+    price: "£20",
+    duration: "45 Minutes",
+    description: "A tailored haircut finished with clean detail and sharp edges.",
+  },
+  {
+    name: "Haircut & Beard",
+    price: "£25",
+    duration: "60 Minutes",
+    description: "Full haircut plus beard shaping for a complete polished finish.",
+  },
+  {
+    name: "Shape Up",
+    price: "£10",
+    duration: "15 Minutes",
+    description: "Freshen up your hairline and edges between full appointments.",
+  },
+  {
+    name: "Beard Trim",
+    price: "£10",
+    duration: "15 Minutes",
+    description: "Clean beard shaping, tidy lines and a sharper overall finish.",
+  },
 ];
 
 const open = (url) => Linking.openURL(url).catch(() => {});
 
-function ActionCard({ icon, label, url }) {
+function Header({ title, onBack }) {
   return (
-    <Pressable
-      onPress={() => open(url)}
-      style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
-    >
-      <Text style={styles.actionIcon}>{icon}</Text>
-      <Text style={styles.actionLabel}>{label}</Text>
-    </Pressable>
+    <View style={styles.pageHeader}>
+      <Pressable onPress={onBack} hitSlop={12} style={styles.backButton}>
+        <Text style={styles.backIcon}>‹</Text>
+      </Pressable>
+      <Text style={styles.pageTitle}>{title}</Text>
+      <View style={styles.headerSpacer} />
+    </View>
   );
 }
 
-export default function App() {
+function ServicesScreen({ onBack }) {
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={BG} />
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.servicesContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <Header title="SERVICES" onBack={onBack} />
+
+        <View style={styles.servicesIntro}>
+          <Text style={styles.sectionEyebrow}>CHOOSE YOUR SERVICE</Text>
+          <Text style={styles.servicesTitle}>Premium Cuts. Clean Detail.</Text>
+          <Text style={styles.servicesSubtitle}>
+            Straightforward pricing with every appointment focused on a clean, confident finish.
+          </Text>
+        </View>
+
+        <View style={styles.serviceList}>
+          {services.map((service) => (
+            <View key={service.name} style={styles.serviceCard}>
+              <View style={styles.serviceCardTop}>
+                <View style={styles.serviceCardCopy}>
+                  <Text style={styles.serviceCardName}>{service.name}</Text>
+                  <Text style={styles.serviceCardDuration}>{service.duration}</Text>
+                </View>
+                <Text style={styles.serviceCardPrice}>{service.price}</Text>
+              </View>
+
+              <Text style={styles.serviceDescription}>{service.description}</Text>
+
+              <Pressable
+                onPress={() => open(links.booking)}
+                style={({ pressed }) => [styles.serviceBookButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.serviceBookText}>BOOK THIS SERVICE</Text>
+                <Text style={styles.serviceBookArrow}>›</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.servicesNotice}>
+          <Text style={styles.servicesNoticeTitle}>BOOKINGS ONLY · NO WALK-INS</Text>
+          <Text style={styles.servicesNoticeText}>
+            Appointments are currently completed through Barbr so availability stays accurate in real time.
+          </Text>
+        </View>
+
+        <Pressable
+          onPress={() => open(links.booking)}
+          style={({ pressed }) => [styles.bookButton, pressed && styles.bookPressed]}
+        >
+          <Text style={styles.bookButtonText}>VIEW AVAILABLE APPOINTMENTS</Text>
+          <Text style={styles.bookArrow}>›</Text>
+        </Pressable>
+
+        <Text style={styles.footer}>QUINCYFADEZ · PREMIUM BARBER IN OXFORD</Text>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function HomeScreen({ onServices }) {
+  const quickActions = [
+    { icon: "✂", label: "Services", action: onServices },
+    { icon: "▣", label: "Gallery", action: () => open(links.gallery) },
+    { icon: "★", label: "Reviews", action: () => open(links.reviews) },
+    { icon: "◉", label: "WhatsApp", action: () => open(links.whatsapp) },
+    { icon: "⌖", label: "Directions", action: () => open(links.directions) },
+    { icon: "↗", label: "Website", action: () => open(links.website) },
+  ];
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={BG} />
@@ -118,7 +209,14 @@ export default function App() {
 
         <View style={styles.actionsGrid}>
           {quickActions.map((item) => (
-            <ActionCard key={item.label} {...item} />
+            <Pressable
+              key={item.label}
+              onPress={item.action}
+              style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
+            >
+              <Text style={styles.actionIcon}>{item.icon}</Text>
+              <Text style={styles.actionLabel}>{item.label}</Text>
+            </Pressable>
           ))}
         </View>
 
@@ -150,7 +248,7 @@ export default function App() {
             </View>
             <Text style={styles.servicePrice}>£25</Text>
           </View>
-          <Pressable onPress={() => open("https://quincyfadez.com/#services")}>
+          <Pressable onPress={onServices}>
             <Text style={styles.viewAll}>VIEW ALL SERVICES  →</Text>
           </Pressable>
         </View>
@@ -161,10 +259,21 @@ export default function App() {
   );
 }
 
+export default function App() {
+  const [screen, setScreen] = useState("home");
+
+  if (screen === "services") {
+    return <ServicesScreen onBack={() => setScreen("home")} />;
+  }
+
+  return <HomeScreen onServices={() => setScreen("services")} />;
+}
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
   screen: { flex: 1, backgroundColor: BG },
   content: { paddingHorizontal: 18, paddingTop: 10, paddingBottom: 42 },
+  servicesContent: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 42 },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -199,13 +308,14 @@ const styles = StyleSheet.create({
   heroText: { color: "#E2E2E2", fontSize: 13, lineHeight: 20, marginTop: 12, maxWidth: 310 },
   bookButton: {
     marginTop: 14,
-    height: 58,
+    minHeight: 58,
     borderRadius: 15,
     backgroundColor: GOLD,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
+    paddingVertical: 15,
     shadowColor: GOLD,
     shadowOpacity: 0.18,
     shadowRadius: 15,
@@ -213,7 +323,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   bookPressed: { opacity: 0.86, transform: [{ scale: 0.995 }] },
-  bookButtonText: { color: "#090909", fontSize: 14, fontWeight: "800", letterSpacing: 1.2 },
+  bookButtonText: { color: "#090909", fontSize: 13, fontWeight: "800", letterSpacing: 1.1, flexShrink: 1 },
   bookArrow: { color: "#090909", fontSize: 31, lineHeight: 31 },
   infoRow: { flexDirection: "row", gap: 8, marginTop: 10 },
   infoPill: {
@@ -276,4 +386,54 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: "#1D1D1D", marginTop: 17 },
   viewAll: { color: GOLD_LIGHT, fontSize: 9, letterSpacing: 1.4, marginTop: 20, fontWeight: "700" },
   footer: { color: "#665437", fontSize: 8, letterSpacing: 2.5, textAlign: "center", marginTop: 34 },
+  pageHeader: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#151515",
+  },
+  backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
+  backIcon: { color: "#F5F5F5", fontSize: 34, lineHeight: 34 },
+  pageTitle: { color: "#F4F4F4", fontSize: 13, letterSpacing: 2.1, fontWeight: "700" },
+  headerSpacer: { width: 44 },
+  servicesIntro: { paddingTop: 28, paddingBottom: 18 },
+  servicesTitle: { color: "#F5F5F5", fontSize: 28, lineHeight: 34, fontWeight: "600", marginTop: 8 },
+  servicesSubtitle: { color: MUTED, fontSize: 13, lineHeight: 20, marginTop: 10, maxWidth: 340 },
+  serviceList: { gap: 12 },
+  serviceCard: {
+    backgroundColor: PANEL,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 18,
+    padding: 18,
+  },
+  serviceCardTop: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
+  serviceCardCopy: { flex: 1 },
+  serviceCardName: { color: "#F3F3F3", fontSize: 19, fontWeight: "600" },
+  serviceCardDuration: { color: GOLD, fontSize: 9, letterSpacing: 1.2, marginTop: 6, textTransform: "uppercase" },
+  serviceCardPrice: { color: GOLD_LIGHT, fontSize: 21, fontWeight: "700" },
+  serviceDescription: { color: MUTED, fontSize: 12, lineHeight: 19, marginTop: 14 },
+  serviceBookButton: {
+    marginTop: 18,
+    borderTopWidth: 1,
+    borderTopColor: "#1C1C1C",
+    paddingTop: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  serviceBookText: { color: GOLD_LIGHT, fontSize: 9, letterSpacing: 1.4, fontWeight: "700" },
+  serviceBookArrow: { color: GOLD_LIGHT, fontSize: 24, lineHeight: 24 },
+  servicesNotice: {
+    marginTop: 18,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#332817",
+    backgroundColor: "#0B0906",
+    padding: 16,
+  },
+  servicesNoticeTitle: { color: GOLD_LIGHT, fontSize: 9, letterSpacing: 1.3, fontWeight: "700" },
+  servicesNoticeText: { color: "#A5A098", fontSize: 11, lineHeight: 18, marginTop: 8 },
 });

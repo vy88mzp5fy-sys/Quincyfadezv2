@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { BookButton } from "@/components/site/primitives";
@@ -19,6 +19,7 @@ export const HeroSection = () => {
   const ref = useRef(null);
   const videoRef = useRef(null);
   const reduceMotion = useReducedMotion();
+  const [videoBlocked, setVideoBlocked] = useState(false);
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end start"],
@@ -32,21 +33,48 @@ export const HeroSection = () => {
     const video = videoRef.current;
     if (!video || reduceMotion) return;
 
-    const syncPlayback = () => {
+    video.muted = true;
+    video.defaultMuted = true;
+    video.setAttribute("muted", "");
+    video.setAttribute("playsinline", "");
+    video.setAttribute("webkit-playsinline", "");
+
+    const tryPlay = () => {
       if (document.hidden) {
         video.pause();
         return;
       }
 
-      video.play().catch(() => {
-        // Autoplay can be blocked by browser policy; the poster remains visible.
-      });
+      const playPromise = video.play();
+      if (playPromise?.then) {
+        playPromise
+          .then(() => setVideoBlocked(false))
+          .catch(() => setVideoBlocked(true));
+      }
     };
 
-    document.addEventListener("visibilitychange", syncPlayback);
-    syncPlayback();
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        video.pause();
+      } else {
+        tryPlay();
+      }
+    };
 
-    return () => document.removeEventListener("visibilitychange", syncPlayback);
+    video.addEventListener("canplay", tryPlay);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", tryPlay);
+    window.addEventListener("focus", tryPlay);
+    document.addEventListener("pointerdown", tryPlay, { passive: true });
+    tryPlay();
+
+    return () => {
+      video.removeEventListener("canplay", tryPlay);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", tryPlay);
+      window.removeEventListener("focus", tryPlay);
+      document.removeEventListener("pointerdown", tryPlay);
+    };
   }, [reduceMotion]);
 
   return (
@@ -60,20 +88,40 @@ export const HeroSection = () => {
         style={reduceMotion ? undefined : { y: mediaY, scale: mediaScale }}
         className="absolute inset-0"
       >
-        <video
-          ref={videoRef}
-          autoPlay={!reduceMotion}
-          muted
-          loop
-          playsInline
-          disablePictureInPicture
-          poster={HERO_MEDIA.thumb}
-          preload="metadata"
-          aria-hidden="true"
-          className="h-full w-full object-cover object-center"
-        >
-          <source src={HERO_MEDIA.video} type="video/mp4" />
-        </video>
+        {reduceMotion ? (
+          <img
+            src={HERO_MEDIA.thumb}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center"
+          />
+        ) : (
+          <>
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              loop
+              playsInline
+              controls={false}
+              disablePictureInPicture
+              poster={HERO_MEDIA.thumb}
+              preload="metadata"
+              aria-hidden="true"
+              className={`h-full w-full object-cover object-center ${videoBlocked ? "opacity-0" : "opacity-100"}`}
+            >
+              <source src={HERO_MEDIA.video} type="video/mp4" />
+            </video>
+            {videoBlocked && (
+              <img
+                src={HERO_MEDIA.thumb}
+                alt=""
+                aria-hidden="true"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+              />
+            )}
+          </>
+        )}
 
         <div className="absolute inset-0 bg-black/24" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/34 via-black/8 to-[#050505]" />

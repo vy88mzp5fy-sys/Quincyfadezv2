@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import BookingScreen from "./src/BookingScreen";
 import GalleryScreen from "./src/GalleryScreen";
+import ReviewsScreen from "./src/ReviewsScreen";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
@@ -112,11 +113,11 @@ function ServicesScreen({ onBack, onBook }) {
   );
 }
 
-function HomeScreen({ onServices, onBooking, onGallery }) {
+function HomeScreen({ onServices, onBooking, onGallery, onReviews }) {
   const actions = [
     { icon: "✂", label: "Services", action: onServices },
     { icon: "▣", label: "Gallery", action: onGallery },
-    { icon: "★", label: "Reviews", action: () => open(links.reviews) },
+    { icon: "★", label: "Reviews", action: onReviews },
     { icon: "◉", label: "WhatsApp", action: () => open(links.whatsapp) },
     { icon: "⌖", label: "Directions", action: () => open(links.directions) },
     { icon: "↗", label: "Website", action: () => open(links.website) },
@@ -194,7 +195,7 @@ function HomeScreen({ onServices, onBooking, onGallery }) {
             <Text style={styles.stars}>★★★★★</Text>
             <Text style={styles.reviewText}>See what clients are saying about QuincyFadez.</Text>
           </View>
-          <Pressable onPress={() => open(links.reviews)} style={styles.reviewButton}><Text style={styles.reviewButtonText}>OPEN</Text></Pressable>
+          <Pressable onPress={onReviews} style={styles.reviewButton}><Text style={styles.reviewButtonText}>OPEN</Text></Pressable>
         </View>
 
         <Text style={styles.footer}>YOUR STYLE. YOUR TIME. YOUR APP.</Text>
@@ -224,11 +225,16 @@ export default function App() {
     return <GalleryScreen onBack={() => setScreen("home")} />;
   }
 
+  if (screen === "reviews") {
+    return <ReviewsScreen onBack={() => setScreen("home")} />;
+  }
+
   return (
     <HomeScreen
       onServices={() => setScreen("services")}
       onBooking={openBooking}
       onGallery={() => setScreen("gallery")}
+      onReviews={() => setScreen("reviews")}
     />
   );
 }

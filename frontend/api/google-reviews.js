@@ -21,6 +21,13 @@ async function getPlace(apiKey, placeId) {
   return { ok: true, place: await response.json() };
 }
 
+function isQuincyFadezBusiness(place) {
+  const name = (place?.displayName?.text || "").toLowerCase();
+  const hasBusinessName = name.includes("quincyfadez") || name.includes("quincy fadez");
+  const hasReviewData = Boolean(place?.rating) || (place?.userRatingCount || 0) > 0;
+  return hasBusinessName || hasReviewData;
+}
+
 async function findQuincyFadez(apiKey) {
   const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
@@ -32,14 +39,14 @@ async function findQuincyFadez(apiKey) {
       "Accept-Language": "en-GB",
     },
     body: JSON.stringify({
-      textQuery: "QuincyFadez barber Oxford OX4 2YD",
+      textQuery: "QuincyFadez barber Oxford",
       locationBias: {
         circle: {
           center: { latitude: 51.7402247, longitude: -1.2202434 },
-          radius: 1500,
+          radius: 3000,
         },
       },
-      maxResultCount: 5,
+      maxResultCount: 10,
     }),
   });
 
@@ -51,9 +58,12 @@ async function findQuincyFadez(apiKey) {
   const data = await response.json();
   const places = data.places || [];
   const match =
-    places.find((place) =>
-      (place.displayName?.text || "").toLowerCase().includes("quincyfadez")
-    ) || places[0];
+    places.find((place) => {
+      const name = (place.displayName?.text || "").toLowerCase();
+      return name.includes("quincyfadez") || name.includes("quincy fadez");
+    }) ||
+    places.find((place) => (place.userRatingCount || 0) > 0) ||
+    places[0];
 
   if (!match?.id) {
     return { ok: false, status: 404, details: "No QuincyFadez place found." };
@@ -83,13 +93,11 @@ export default async function handler(req, res) {
       ? await getPlace(apiKey, configuredPlaceId)
       : { ok: false, status: 404, details: "No configured Place ID." };
 
-    // The address Place ID can differ from the Google Business Profile Place ID.
-    // If the configured ID does not resolve, find the QuincyFadez business listing directly.
-    if (!placeResult.ok) {
+    // Address Place IDs can resolve successfully but contain no business profile or reviews.
+    // In that case, search for the actual QuincyFadez business listing instead.
+    if (!placeResult.ok || !isQuincyFadezBusiness(placeResult.place)) {
       console.warn(
-        "Configured Google Place ID did not resolve; searching for QuincyFadez business listing.",
-        placeResult.status,
-        placeResult.details
+        "Configured Google Place ID is not the QuincyFadez business listing; searching by business name."
       );
 
       const searchResult = await findQuincyFadez(apiKey);

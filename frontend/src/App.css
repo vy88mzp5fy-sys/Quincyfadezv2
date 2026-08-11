@@ -40,27 +40,32 @@
 .brand-metal {
   background: linear-gradient(
     105deg,
-    #8a6a2f 0%,
-    #f6e4aa 16%,
-    #ffffff 31%,
-    #d7b96f 48%,
-    #8cb4ff 65%,
-    #d3b3ff 79%,
-    #f5df9d 100%
+    #9b7838 0%,
+    #d6bd7a 18%,
+    #f1dda2 36%,
+    #fffdf5 48%,
+    #f7edcf 54%,
+    #d6bd7a 70%,
+    #a9823c 86%,
+    #d6bd7a 100%
   );
-  background-size: 240% auto;
+  background-size: 260% auto;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: brand-sheen 8s linear infinite;
+  animation: brand-sheen 7.5s ease-in-out infinite;
   filter:
     drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55))
-    drop-shadow(0 0 14px rgba(214, 189, 122, 0.1));
+    drop-shadow(0 0 12px rgba(214, 189, 122, 0.12));
 }
 @keyframes brand-sheen {
-  to {
-    background-position: 240% center;
+  0% {
+    background-position: 100% center;
+  }
+  55%,
+  100% {
+    background-position: -160% center;
   }
 }
 .brand-logo-link .brand-dot {

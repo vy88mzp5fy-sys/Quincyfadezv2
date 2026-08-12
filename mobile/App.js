@@ -13,6 +13,7 @@ import {
 import BookingScreen from "./src/BookingScreen";
 import GalleryScreen from "./src/GalleryScreen";
 import ReviewsScreen from "./src/ReviewsScreen";
+import AccountScreen from "./src/AccountScreen";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
@@ -22,8 +23,6 @@ const BORDER = "#242424";
 const MUTED = "#9A9A9A";
 
 const links = {
-  booking: "https://www.barbr.me/quincyfadez",
-  reviews: "https://g.page/r/CbQwl91s8_vqEBM/review",
   whatsapp: "https://wa.me/447490194682",
   directions: "https://www.google.com/maps/dir/?api=1&destination=51.7402247,-1.2202434",
   website: "https://quincyfadez.com",
@@ -70,12 +69,13 @@ function Header({ title, onBack }) {
   );
 }
 
-function BottomNav({ screen, onHome, onBook, onGallery, onReviews }) {
+function BottomNav({ screen, onHome, onBook, onGallery, onReviews, onAccount }) {
   const items = [
     { key: "home", icon: "⌂", label: "Home", action: onHome },
     { key: "booking", icon: "＋", label: "Book", action: onBook },
     { key: "gallery", icon: "▣", label: "Gallery", action: onGallery },
     { key: "reviews", icon: "★", label: "Reviews", action: onReviews },
+    { key: "account", icon: "◌", label: "Account", action: onAccount },
   ];
 
   return (
@@ -87,12 +87,14 @@ function BottomNav({ screen, onHome, onBook, onGallery, onReviews }) {
             <Pressable
               key={item.key}
               onPress={item.action}
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
               style={({ pressed }) => [styles.navItem, pressed && styles.navPressed]}
             >
               <View style={[styles.navIconWrap, active && styles.navIconWrapActive]}>
                 <Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text>
               </View>
-              <Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>
+              <Text style={[styles.navLabel, active && styles.navLabelActive]} numberOfLines={1}>{item.label}</Text>
               {active ? <View style={styles.navIndicator} /> : null}
             </Pressable>
           );
@@ -133,21 +135,21 @@ function ServicesScreen({ onBack, onBook }) {
         </View>
         <View style={styles.noticeCard}>
           <Text style={styles.noticeTitle}>BOOKINGS ONLY · NO WALK-INS</Text>
-          <Text style={styles.noticeText}>Choose your service here, then continue to Barbr for live date and time availability.</Text>
+          <Text style={styles.noticeText}>Choose your service, verify your payment method securely, then continue to Barbr for live date and time availability.</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function HomeScreen({ onServices, onBooking, onGallery, onReviews }) {
+function HomeScreen({ onServices, onBooking, onGallery, onReviews, onAccount }) {
   const actions = [
     { icon: "✂", label: "Services", action: onServices },
     { icon: "▣", label: "Gallery", action: onGallery },
     { icon: "★", label: "Reviews", action: onReviews },
+    { icon: "◌", label: "Account", action: onAccount },
     { icon: "◉", label: "WhatsApp", action: () => open(links.whatsapp) },
     { icon: "⌖", label: "Directions", action: () => open(links.directions) },
-    { icon: "↗", label: "Website", action: () => open(links.website) },
   ];
 
   return (
@@ -159,9 +161,11 @@ function HomeScreen({ onServices, onBooking, onGallery, onReviews }) {
             <Text style={styles.brand}>QUINCYFADEZ</Text>
             <Text style={styles.subBrand}>PREMIUM BARBER IN OXFORD</Text>
           </View>
-          <View style={styles.logoCircle}>
-            <Image source={{ uri: "https://quincyfadez.com/apple-touch-icon.png" }} style={styles.logo} />
-          </View>
+          <Pressable onPress={onAccount} accessibilityRole="button" accessibilityLabel="Open Account">
+            <View style={styles.logoCircle}>
+              <Image source={{ uri: "https://quincyfadez.com/apple-touch-icon.png" }} style={styles.logo} />
+            </View>
+          </Pressable>
         </View>
 
         <View style={styles.heroCard}>
@@ -178,7 +182,7 @@ function HomeScreen({ onServices, onBooking, onGallery, onReviews }) {
         <Pressable onPress={() => onBooking("Haircut")} style={({ pressed }) => [styles.goldButton, pressed && styles.goldPressed]}>
           <View>
             <Text style={styles.goldButtonText}>BOOK APPOINTMENT</Text>
-            <Text style={styles.goldButtonSubtext}>Choose your service and check availability</Text>
+            <Text style={styles.goldButtonSubtext}>Service · Secure card · Live availability</Text>
           </View>
           <Text style={styles.goldArrow}>›</Text>
         </Pressable>
@@ -234,6 +238,9 @@ function HomeScreen({ onServices, onBooking, onGallery, onReviews }) {
           <View style={styles.reviewButton}><Text style={styles.reviewButtonText}>OPEN</Text></View>
         </Pressable>
 
+        <Pressable onPress={() => open(links.website)} style={styles.websiteLink}>
+          <Text style={styles.websiteLinkText}>QUINCYFADEZ.COM ↗</Text>
+        </Pressable>
         <Text style={styles.footer}>YOUR STYLE. YOUR TIME. YOUR APP.</Text>
       </ScrollView>
     </SafeAreaView>
@@ -249,11 +256,14 @@ export default function App() {
     setScreen("booking");
   };
 
+  const goHome = () => setScreen("home");
+
   const renderScreen = () => {
-    if (screen === "services") return <ServicesScreen onBack={() => setScreen("home")} onBook={openBooking} />;
-    if (screen === "booking") return <BookingScreen initialService={bookingService} onBack={() => setScreen("home")} />;
-    if (screen === "gallery") return <GalleryScreen onBack={() => setScreen("home")} />;
-    if (screen === "reviews") return <ReviewsScreen onBack={() => setScreen("home")} />;
+    if (screen === "services") return <ServicesScreen onBack={goHome} onBook={openBooking} />;
+    if (screen === "booking") return <BookingScreen initialService={bookingService} onBack={goHome} />;
+    if (screen === "gallery") return <GalleryScreen onBack={goHome} />;
+    if (screen === "reviews") return <ReviewsScreen onBack={goHome} />;
+    if (screen === "account") return <AccountScreen onBack={goHome} />;
 
     return (
       <HomeScreen
@@ -261,20 +271,24 @@ export default function App() {
         onBooking={openBooking}
         onGallery={() => setScreen("gallery")}
         onReviews={() => setScreen("reviews")}
+        onAccount={() => setScreen("account")}
       />
     );
   };
 
+  const showBottomNav = screen !== "services";
+
   return (
     <View style={styles.appShell}>
       <View style={styles.screenStage}>{renderScreen()}</View>
-      {screen !== "services" ? (
+      {showBottomNav ? (
         <BottomNav
           screen={screen}
-          onHome={() => setScreen("home")}
+          onHome={goHome}
           onBook={() => openBooking(bookingService)}
           onGallery={() => setScreen("gallery")}
           onReviews={() => setScreen("reviews")}
+          onAccount={() => setScreen("account")}
         />
       ) : null}
     </View>
@@ -286,7 +300,7 @@ const styles = StyleSheet.create({
   screenStage: { flex: 1 },
   safeArea: { flex: 1, backgroundColor: BG },
   screen: { flex: 1, backgroundColor: BG },
-  homeContent: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 36 },
+  homeContent: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 34 },
   pageContent: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 42 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   brandBlock: { paddingLeft: 1 },
@@ -301,7 +315,7 @@ const styles = StyleSheet.create({
   heroTopTagText: { color: "#E0C98D", fontSize: 7.5, letterSpacing: 1.35, fontWeight: "700" },
   heroCopy: { position: "absolute", left: 20, right: 20, bottom: 22 },
   heroTitle: { color: "#FFFFFF", fontSize: 28, lineHeight: 30, fontWeight: "800", letterSpacing: 0.2 },
-  heroGold: { color: "#E4C16D", fontSize: 18, fontWeight: "700", marginTop: 5, letterSpacing: 0.2 },
+  heroGold: { color: "#E4C16D", fontSize: 18, fontWeight: "700", marginTop: 5 },
   heroText: { color: "#D8D8D8", fontSize: 12.5, lineHeight: 19, marginTop: 11, maxWidth: 300 },
   goldButton: { marginTop: 13, minHeight: 64, borderRadius: 16, backgroundColor: GOLD, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 19, paddingVertical: 13, borderWidth: 1, borderColor: "#D8AE5E", shadowColor: GOLD, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
   goldPressed: { opacity: 0.88, transform: [{ scale: 0.995 }] },
@@ -314,13 +328,13 @@ const styles = StyleSheet.create({
   infoValue: { color: "#ECECEC", fontSize: 10.8, fontWeight: "700", marginTop: 4 },
   sectionHeader: { marginTop: 27, marginBottom: 13 },
   sectionEyebrow: { color: "#B99150", fontSize: 8.5, letterSpacing: 2, fontWeight: "800" },
-  sectionTitle: { color: "#F5F5F5", fontSize: 23, fontWeight: "700", marginTop: 6, letterSpacing: -0.2 },
+  sectionTitle: { color: "#F5F5F5", fontSize: 23, fontWeight: "700", marginTop: 6 },
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9 },
   actionCard: { width: "31.5%", minHeight: 100, borderRadius: 15, borderWidth: 1, borderColor: "#202020", backgroundColor: "#0B0B0B", alignItems: "center", justifyContent: "center", paddingHorizontal: 7 },
   actionIconWrap: { width: 35, height: 35, borderRadius: 18, borderWidth: 1, borderColor: "#342A19", backgroundColor: "#121008", alignItems: "center", justifyContent: "center", marginBottom: 9 },
   pressed: { opacity: 0.74 },
   actionIcon: { color: "#E3C16F", fontSize: 18 },
-  actionLabel: { color: "#E2E2E2", fontSize: 8.5, letterSpacing: 0.65, textTransform: "uppercase", fontWeight: "600" },
+  actionLabel: { color: "#E2E2E2", fontSize: 8.2, letterSpacing: 0.55, textTransform: "uppercase", fontWeight: "600" },
   servicePreview: { marginTop: 20, backgroundColor: "#0B0B0B", borderRadius: 18, borderWidth: 1, borderColor: "#232323", padding: 18 },
   cardHeadingRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardLink: { color: "#D8B563", fontSize: 8, letterSpacing: 1.1, fontWeight: "800" },
@@ -338,7 +352,9 @@ const styles = StyleSheet.create({
   reviewText: { color: "#989898", fontSize: 9.8, marginTop: 6, lineHeight: 15 },
   reviewButton: { borderWidth: 1, borderColor: "#66502A", backgroundColor: "#141008", borderRadius: 18, paddingHorizontal: 14, paddingVertical: 9 },
   reviewButtonText: { color: GOLD_LIGHT, fontSize: 8.5, letterSpacing: 1, fontWeight: "800" },
-  footer: { color: "#5C4C31", fontSize: 7.5, letterSpacing: 2.3, textAlign: "center", marginTop: 30 },
+  websiteLink: { alignItems: "center", marginTop: 20, paddingVertical: 8 },
+  websiteLinkText: { color: "#8D744A", fontSize: 8, letterSpacing: 1.6, fontWeight: "700" },
+  footer: { color: "#5C4C31", fontSize: 7.5, letterSpacing: 2.3, textAlign: "center", marginTop: 10 },
   pageHeader: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#151515" },
   backButton: { width: 44, height: 44, justifyContent: "center" },
   backIcon: { color: "#F5F5F5", fontSize: 34, lineHeight: 34 },
@@ -361,15 +377,15 @@ const styles = StyleSheet.create({
   noticeCard: { marginTop: 18, borderRadius: 16, borderWidth: 1, borderColor: "#332817", backgroundColor: "#0B0906", padding: 16 },
   noticeTitle: { color: GOLD_LIGHT, fontSize: 9, letterSpacing: 1.3, fontWeight: "700" },
   noticeText: { color: "#A5A098", fontSize: 11, lineHeight: 18, marginTop: 8 },
-  bottomNavWrap: { backgroundColor: BG, borderTopWidth: 1, borderTopColor: "#171717", paddingHorizontal: 12, paddingTop: 7, paddingBottom: 7 },
-  bottomNav: { minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderRadius: 20, backgroundColor: "#0A0A0A", borderWidth: 1, borderColor: "#202020", paddingHorizontal: 5 },
-  navItem: { flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", position: "relative" },
+  bottomNavWrap: { backgroundColor: BG, borderTopWidth: 1, borderTopColor: "#171717", paddingHorizontal: 8, paddingTop: 7, paddingBottom: 7 },
+  bottomNav: { minHeight: 62, flexDirection: "row", alignItems: "center", justifyContent: "space-around", borderRadius: 20, backgroundColor: "#0A0A0A", borderWidth: 1, borderColor: "#202020", paddingHorizontal: 2 },
+  navItem: { flex: 1, minHeight: 54, alignItems: "center", justifyContent: "center", position: "relative", minWidth: 0 },
   navPressed: { opacity: 0.72 },
-  navIconWrap: { width: 28, height: 25, alignItems: "center", justifyContent: "center", borderRadius: 10 },
+  navIconWrap: { width: 26, height: 24, alignItems: "center", justifyContent: "center", borderRadius: 10 },
   navIconWrapActive: { backgroundColor: "#181207", borderWidth: 1, borderColor: "#4D3B1E" },
-  navIcon: { color: "#777", fontSize: 17, lineHeight: 19 },
+  navIcon: { color: "#777", fontSize: 16, lineHeight: 18 },
   navIconActive: { color: GOLD_LIGHT },
-  navLabel: { color: "#777", fontSize: 8, letterSpacing: 0.7, marginTop: 2, fontWeight: "600" },
+  navLabel: { color: "#777", fontSize: 7.2, letterSpacing: 0.25, marginTop: 2, fontWeight: "600" },
   navLabelActive: { color: "#EFE5D3" },
-  navIndicator: { position: "absolute", bottom: 1, width: 18, height: 2, borderRadius: 2, backgroundColor: GOLD },
+  navIndicator: { position: "absolute", bottom: 1, width: 16, height: 2, borderRadius: 2, backgroundColor: GOLD },
 });

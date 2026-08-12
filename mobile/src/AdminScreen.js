@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -168,6 +169,54 @@ function BlockTimeEditor({ blocks, busy, onCreate, onDelete }) {
   </View>;
 }
 
+function ClientProfile({ data, noteDraft, setNoteDraft, saving, onBack, onSaveNote }) {
+  const client = data?.client || {};
+  const history = data?.history || [];
+  const upcoming = data?.upcoming || [];
+  const openPhone = () => client.phone && Linking.openURL(`tel:${client.phone}`).catch(() => {});
+  const openMessage = () => client.phone && Linking.openURL(`sms:${client.phone}`).catch(() => {});
+  const openWhatsApp = () => client.phone && Linking.openURL(`https://wa.me/${String(client.phone).replace(/\D/g, "")}`).catch(() => {});
+  const openEmail = () => client.email && Linking.openURL(`mailto:${client.email}`).catch(() => {});
+
+  return <>
+    <Pressable onPress={onBack} style={styles.clientBack}><Text style={styles.clientBackText}>‹ CLIENTS</Text></Pressable>
+    <View style={styles.profileHero}>
+      <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View>
+      <View style={styles.profileHeroCopy}><Text style={styles.profileName}>{client.name || "Client"}</Text><Text style={styles.profileContact}>{client.phone || "No phone saved"}</Text>{client.email ? <Text style={styles.profileContact}>{client.email}</Text> : null}</View>
+      {client.regular ? <View style={styles.regularPill}><Text style={styles.regularText}>REGULAR</Text></View> : null}
+    </View>
+
+    <View style={styles.clientActionGrid}>
+      <Pressable disabled={!client.phone} onPress={openPhone} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>☎</Text><Text style={styles.clientActionText}>CALL</Text></Pressable>
+      <Pressable disabled={!client.phone} onPress={openMessage} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>✉</Text><Text style={styles.clientActionText}>MESSAGE</Text></Pressable>
+      <Pressable disabled={!client.phone} onPress={openWhatsApp} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>◉</Text><Text style={styles.clientActionText}>WHATSAPP</Text></Pressable>
+      <Pressable disabled={!client.email} onPress={openEmail} style={[styles.clientAction, !client.email && styles.disabled]}><Text style={styles.clientActionIcon}>@</Text><Text style={styles.clientActionText}>EMAIL</Text></Pressable>
+    </View>
+
+    <View style={styles.metricsGrid}>
+      <MetricCard label="COMPLETED" value={String(client.completed_count || 0)} meta="Finished visits" />
+      <MetricCard label="TOTAL SPEND" value={money(client.total_spend)} meta="Completed visits only" />
+      <MetricCard label="NO-SHOWS" value={String(client.no_show_count || 0)} meta="Recorded no-shows" />
+      <MetricCard label="CANCELLED" value={String(client.cancelled_count || 0)} meta="Cancelled bookings" />
+    </View>
+
+    <View style={styles.profileFacts}>
+      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST VISIT</Text><Text style={styles.profileFactValue}>{formatDate(client.last_visit)}</Text></View>
+      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST SERVICE</Text><Text style={styles.profileFactValue}>{client.last_service || "—"}</Text></View>
+      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>NEXT VISIT</Text><Text style={styles.profileFactValue}>{client.next_booking ? `${formatDate(client.next_booking.start_at)} · ${formatTime(client.next_booking.start_at)}` : "None Booked"}</Text></View>
+    </View>
+
+    <View style={styles.clientNotesCard}>
+      <View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>PRIVATE</Text><Text style={styles.sectionTitle}>Client Notes</Text></View><Pressable disabled={saving} onPress={onSaveNote} style={[styles.smallPill, saving && styles.disabled]}><Text style={styles.smallPillText}>{saving ? "SAVING…" : "SAVE"}</Text></Pressable></View>
+      <Text style={styles.clientNotesHelp}>Keep useful barber notes here — preferences, usual cut, conversation reminders or anything that helps the next appointment.</Text>
+      <TextInput value={noteDraft} onChangeText={setNoteDraft} multiline maxLength={2000} placeholder="Add a private client note…" placeholderTextColor="#555" style={styles.clientNotesInput} />
+    </View>
+
+    <View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>UPCOMING</Text><Text style={styles.sectionTitle}>Next Appointments</Text></View><Text style={styles.mutedSmall}>{upcoming.length}</Text></View>{upcoming.length ? upcoming.map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No upcoming appointments.</Text>}</View>
+    <View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>HISTORY</Text><Text style={styles.sectionTitle}>Booking History</Text></View><Text style={styles.mutedSmall}>{history.length}</Text></View>{history.length ? history.slice(0, 20).map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No previous appointments.</Text>}</View>
+  </>;
+}
+
 export default function AdminScreen({ onExit }) {
   const [token, setToken] = useState("");
   const [checking, setChecking] = useState(true);
@@ -176,6 +225,10 @@ export default function AdminScreen({ onExit }) {
   const [bookings, setBookings] = useState([]);
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState("");
+  const [clientDetail, setClientDetail] = useState(null);
+  const [clientNoteDraft, setClientNoteDraft] = useState("");
+  const [clientBusy, setClientBusy] = useState(false);
   const [settings, setSettings] = useState(null);
   const [schedulePanel, setSchedulePanel] = useState("appointments");
   const [loading, setLoading] = useState(false);
@@ -204,7 +257,7 @@ export default function AdminScreen({ onExit }) {
         const [bookingData, settingsData] = await Promise.all([adminRequest("/api/admin/bookings?days=7"), adminRequest("/api/admin/settings")]);
         setBookings(bookingData.bookings || []); setSettings(settingsData.settings || null);
       }
-      if (tab === "clients") setClients((await adminRequest("/api/admin/clients")).clients || []);
+      if (tab === "clients" && !selectedClient) setClients((await adminRequest("/api/admin/clients")).clients || []);
       if (tab === "settings") setSettings((await adminRequest("/api/admin/settings")).settings || null);
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
@@ -213,7 +266,7 @@ export default function AdminScreen({ onExit }) {
 
   const logout = async () => {
     try { if (token) await fetch(`${API_URL}/api/admin/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); } catch (_) {}
-    await AsyncStorage.removeItem(TOKEN_KEY); setToken(""); setOverview(null); setBookings([]); setClients([]); setSettings(null);
+    await AsyncStorage.removeItem(TOKEN_KEY); setToken(""); setOverview(null); setBookings([]); setClients([]); setSettings(null); setSelectedClient(""); setClientDetail(null);
   };
 
   const updateBookingStatus = async (booking, status) => {
@@ -251,6 +304,27 @@ export default function AdminScreen({ onExit }) {
     catch (err) { setError(err.message); } finally { setBlockBusy(false); }
   };
 
+  const openClient = async (clientKey) => {
+    if (!clientKey || clientBusy) return;
+    setClientBusy(true); setError("");
+    try {
+      const data = await adminRequest(`/api/admin/clients/${encodeURIComponent(clientKey)}`);
+      setSelectedClient(clientKey); setClientDetail(data); setClientNoteDraft(data?.client?.notes || "");
+    } catch (err) { setError(err.message); } finally { setClientBusy(false); }
+  };
+
+  const closeClient = () => { setSelectedClient(""); setClientDetail(null); setClientNoteDraft(""); };
+
+  const saveClientNote = async () => {
+    if (!selectedClient || clientBusy) return;
+    setClientBusy(true); setError("");
+    try {
+      await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`, { method: "PUT", body: JSON.stringify({ notes: clientNoteDraft }) });
+      const refreshed = await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`);
+      setClientDetail(refreshed); setClientNoteDraft(refreshed?.client?.notes || ""); setSavedMessage("Saved"); setTimeout(() => setSavedMessage(""), 1600);
+    } catch (err) { setError(err.message); } finally { setClientBusy(false); }
+  };
+
   const filteredClients = useMemo(() => {
     const q = clientSearch.trim().toLowerCase();
     if (!q) return clients;
@@ -274,7 +348,10 @@ export default function AdminScreen({ onExit }) {
 
     if (tab === "insights") return <><Text style={styles.kicker}>INSIGHTS</Text><Text style={styles.pageTitle}>Know Your Business.</Text><Text style={styles.pageText}>No fake demo numbers. This area only shows data created by real QuincyFadez bookings.</Text><View style={[styles.metricsGrid, { marginTop: 12 }]}><MetricCard label="TODAY'S REVENUE" value={money(overview?.today_revenue)} /><MetricCard label="TODAY'S BOOKINGS" value={String(overview?.today_bookings ?? 0)} /><MetricCard label="NEW CLIENTS" value={String(overview?.new_clients ?? 0)} /><MetricCard label="UTILISATION" value={overview?.utilisation_percent == null ? "—" : `${overview.utilisation_percent}%`} /></View><View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>PERFORMANCE</Text><Text style={styles.emptyTitle}>{overview?.today_bookings ? "Insights Are Building" : "No Insights Yet"}</Text><Text style={styles.emptyText}>Revenue, bookings, average booking value, hours, utilisation, cancellations, no-shows and client retention will build from real activity.</Text></View></>;
 
-    if (tab === "clients") return <><View style={styles.sectionTopRow}><View><Text style={styles.kicker}>CLIENTS</Text><Text style={styles.pageTitle}>Your Client Book.</Text></View></View><Text style={styles.pageText}>Search real client profiles, booking history and spend.</Text><View style={styles.searchShell}><Text style={styles.searchIcon}>⌕</Text><TextInput value={clientSearch} onChangeText={setClientSearch} placeholder="Search Name, Phone Or Email" placeholderTextColor="#666" style={styles.searchInput} /></View>{filteredClients.length ? filteredClients.map((client) => <View key={client.client_key} style={styles.clientCard}><View style={styles.clientAvatar}><Text style={styles.clientAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View><View style={styles.clientCopy}><Text style={styles.clientName}>{client.name || "Client"}</Text><Text style={styles.clientMeta}>{client.phone || client.email || "No contact saved"}</Text><Text style={styles.clientStats}>{client.booking_count || 0} BOOKINGS · {money(client.total_spend)} SPEND{client.regular ? " · REGULAR" : ""}</Text></View><Text style={styles.rowArrow}>›</Text></View>) : <View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>CLIENT DIRECTORY</Text><Text style={styles.emptyTitle}>{clientSearch ? "No Matching Clients" : "No Clients Yet"}</Text><Text style={styles.emptyText}>{clientSearch ? "Try another name, number or email." : "Clients appear here automatically after their first in-app booking."}</Text></View>}</>;
+    if (tab === "clients") {
+      if (selectedClient && clientDetail) return <ClientProfile data={clientDetail} noteDraft={clientNoteDraft} setNoteDraft={setClientNoteDraft} saving={clientBusy} onBack={closeClient} onSaveNote={saveClientNote} />;
+      return <><View style={styles.sectionTopRow}><View><Text style={styles.kicker}>CLIENTS</Text><Text style={styles.pageTitle}>Your Client Book.</Text></View></View><Text style={styles.pageText}>Search real client profiles, booking history and completed spend.</Text><View style={styles.searchShell}><Text style={styles.searchIcon}>⌕</Text><TextInput value={clientSearch} onChangeText={setClientSearch} placeholder="Search Name, Phone Or Email" placeholderTextColor="#666" style={styles.searchInput} /></View>{clientBusy ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>OPENING CLIENT…</Text></View> : null}{filteredClients.length ? filteredClients.map((client) => <Pressable key={client.client_key} onPress={() => openClient(client.client_key)} style={styles.clientCard}><View style={styles.clientAvatar}><Text style={styles.clientAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View><View style={styles.clientCopy}><Text style={styles.clientName}>{client.name || "Client"}</Text><Text style={styles.clientMeta}>{client.phone || client.email || "No contact saved"}</Text><Text style={styles.clientStats}>{client.completed_count || 0} COMPLETED · {money(client.total_spend)} SPEND{client.regular ? " · REGULAR" : ""}</Text>{client.next_booking ? <Text style={styles.clientNext}>NEXT · {formatDate(client.next_booking.start_at)} {formatTime(client.next_booking.start_at)}</Text> : null}</View><Text style={styles.rowArrow}>›</Text></Pressable>) : <View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>CLIENT DIRECTORY</Text><Text style={styles.emptyTitle}>{clientSearch ? "No Matching Clients" : "No Clients Yet"}</Text><Text style={styles.emptyText}>{clientSearch ? "Try another name, number or email." : "Clients appear here automatically after their first in-app booking."}</Text></View>}</>;
+    }
 
     const automation = settings?.automations || {};
     return <><View style={styles.settingsHeader}><View><Text style={styles.kicker}>SETTINGS</Text><Text style={styles.pageTitle}>Run QuincyFadez Your Way.</Text></View>{saving ? <ActivityIndicator color={GOLD_LIGHT} /> : savedMessage ? <Text style={styles.savedText}>✓ SAVED</Text> : null}</View><Text style={styles.pageText}>Only useful controls for running the business — no filler settings.</Text>
@@ -286,12 +363,12 @@ export default function AdminScreen({ onExit }) {
       <SettingsSection title="BUSINESS SETTINGS"><SettingRow title="Notifications" meta="Master control for business alerts and client automation" control={<Toggle value={Boolean(settings?.notifications_enabled)} disabled={saving} onChange={(value) => saveSettings({ notifications_enabled: value })} />} /><SettingRow last title="Policies" meta="Booking, lateness, cancellation and payment policies" control={<Text style={styles.rowArrow}>›</Text>} /></SettingsSection>
       <SettingsSection title="ACCOUNT & HELP">{[["Account", "Admin security and owner access"],["Help & Support", "Support and diagnostics"],["FAQs", "Common QuincyFadez admin questions"],["Send Feedback", "Send product feedback"]].map(([title, meta]) => <SettingRow key={title} title={title} meta={meta} control={<Text style={styles.rowArrow}>›</Text>} />)}<Pressable onPress={logout}><SettingRow last title="Log Out" meta="End this secure admin session" control={<Text style={[styles.rowArrow, { color: "#D98778" }]}>›</Text>} /></Pressable></SettingsSection>
     </>;
-  }, [tab, overview, bookings, filteredClients, clientSearch, settings, saving, savedMessage, actionBusy, schedulePanel, blockBusy]);
+  }, [tab, overview, bookings, filteredClients, clientSearch, selectedClient, clientDetail, clientNoteDraft, clientBusy, settings, saving, savedMessage, actionBusy, schedulePanel, blockBusy]);
 
   if (checking) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><ActivityIndicator color={GOLD_LIGHT} /></View></SafeAreaView>;
   if (!token) return <Login onLogin={setToken} />;
 
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={BG} /><View style={styles.shell}><View style={styles.adminHeader}><View><Text style={styles.brand}>QUINCYFADEZ</Text><Text style={styles.adminLabel}>BARBER ADMIN</Text></View><View style={styles.headerActions}><Pressable onPress={logout} style={styles.exitButton}><Text style={styles.exitText}>LOG OUT</Text></Pressable>{onExit ? <Pressable onPress={onExit} style={styles.exitButton}><Text style={styles.exitText}>EXIT</Text></Pressable> : null}</View></View><ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{loading ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>SYNCING LIVE DATA…</Text></View> : null}{error ? <Text style={styles.errorText}>{error}</Text> : null}{body}</ScrollView><View style={styles.bottomWrap}><View style={styles.bottomNav}>{TABS.map((item) => { const active = tab === item.key; return <Pressable key={item.key} onPress={() => setTab(item.key)} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}><View style={[styles.navIconWrap, active && styles.navIconWrapActive]}><Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text></View><Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>{active ? <View style={styles.navIndicator} /> : null}</Pressable>; })}</View></View></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={BG} /><View style={styles.shell}><View style={styles.adminHeader}><View><Text style={styles.brand}>QUINCYFADEZ</Text><Text style={styles.adminLabel}>BARBER ADMIN</Text></View><View style={styles.headerActions}><Pressable onPress={logout} style={styles.exitButton}><Text style={styles.exitText}>LOG OUT</Text></Pressable>{onExit ? <Pressable onPress={onExit} style={styles.exitButton}><Text style={styles.exitText}>EXIT</Text></Pressable> : null}</View></View><ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{loading ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>SYNCING LIVE DATA…</Text></View> : null}{error ? <Text style={styles.errorText}>{error}</Text> : null}{body}</ScrollView><View style={styles.bottomWrap}><View style={styles.bottomNav}>{TABS.map((item) => { const active = tab === item.key; return <Pressable key={item.key} onPress={() => { if (item.key !== "clients") closeClient(); setTab(item.key); }} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}><View style={[styles.navIconWrap, active && styles.navIconWrapActive]}><Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text></View><Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>{active ? <View style={styles.navIndicator} /> : null}</Pressable>; })}</View></View></View></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
@@ -311,7 +388,8 @@ const styles = StyleSheet.create({
   dayCard:{borderRadius:15,borderWidth:1,borderColor:"#222",backgroundColor:"#0D0D0D",padding:13,marginTop:9},dayTop:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},dayName:{color:"#EEEEEE",fontSize:12.5,fontWeight:"700"},dayStatus:{color:"#6F6658",fontSize:6.5,letterSpacing:.7,marginTop:4,fontWeight:"800"},dayToggle:{borderRadius:12,borderWidth:1,borderColor:"#333",paddingHorizontal:9,paddingVertical:6},dayToggleOn:{backgroundColor:"#171107",borderColor:"#5A4523"},dayToggleText:{color:"#777",fontSize:6.5,fontWeight:"900"},dayToggleTextOn:{color:GOLD_LIGHT},windowRow:{flexDirection:"row",alignItems:"center",gap:7,marginTop:11},timeField:{flex:1,borderRadius:11,borderWidth:1,borderColor:"#282828",backgroundColor:"#090909",paddingHorizontal:10,paddingVertical:7},timeFieldLabel:{color:"#6F6658",fontSize:5.8,letterSpacing:.8,fontWeight:"800"},timeInput:{color:"#F0F0F0",fontSize:12,fontWeight:"700",paddingVertical:3},windowDash:{color:"#666"},removeWindow:{width:30,height:36,alignItems:"center",justifyContent:"center"},removeWindowText:{color:"#B96D64",fontSize:20},addWindow:{marginTop:9,paddingVertical:7},addWindowText:{color:"#A88A54",fontSize:6.5,letterSpacing:.9,fontWeight:"900"},
   blockForm:{gap:8},blockInput:{minHeight:48,borderRadius:12,borderWidth:1,borderColor:"#282828",backgroundColor:"#0B0B0B",paddingHorizontal:12,color:"#F0F0F0",fontSize:10},blockTimeRow:{flexDirection:"row",gap:8},blockTimeInput:{flex:1},blockButton:{minHeight:48,borderRadius:13,backgroundColor:GOLD,alignItems:"center",justifyContent:"center",marginTop:2},blockButtonText:{color:"#090909",fontSize:8,letterSpacing:1,fontWeight:"900"},subSectionLabel:{color:"#7E6A48",fontSize:6.8,letterSpacing:1.3,fontWeight:"900",marginTop:18,marginBottom:2},blockItem:{minHeight:66,borderRadius:13,borderWidth:1,borderColor:"#232323",backgroundColor:"#0C0C0C",paddingHorizontal:12,marginTop:8,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},blockItemCopy:{flex:1},blockItemTitle:{color:"#EAEAEA",fontSize:11.5,fontWeight:"700"},blockItemMeta:{color:"#777",fontSize:7.5,marginTop:4},blockDelete:{borderRadius:10,borderWidth:1,borderColor:"#4B2B27",paddingHorizontal:8,paddingVertical:7},blockDeleteText:{color:"#CF8175",fontSize:6,letterSpacing:.7,fontWeight:"900"},
   emptyCard:{marginTop:17,borderRadius:21,borderWidth:1,borderColor:"#29251D",backgroundColor:"#0B0A08",paddingHorizontal:22,paddingVertical:28,alignItems:"center"},emptyEyebrow:{color:GOLD,fontSize:7,letterSpacing:1.6,fontWeight:"900"},emptyTitle:{color:"#F0F0F0",fontSize:19,fontWeight:"700",marginTop:6},emptyText:{color:MUTED,fontSize:10,lineHeight:16,textAlign:"center",marginTop:8,maxWidth:290},
-  searchShell:{minHeight:52,borderRadius:15,borderWidth:1,borderColor:"#272727",backgroundColor:PANEL,flexDirection:"row",alignItems:"center",paddingHorizontal:15,gap:10},searchIcon:{color:"#8C744A",fontSize:19},searchInput:{flex:1,color:"#E6E6E6",fontSize:10},clientCard:{marginTop:9,minHeight:78,borderRadius:16,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,padding:12,flexDirection:"row",alignItems:"center"},clientAvatar:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:"#4B3A20",backgroundColor:"#151006",alignItems:"center",justifyContent:"center"},clientAvatarText:{color:GOLD_LIGHT,fontSize:16,fontWeight:"800"},clientCopy:{flex:1,marginLeft:11},clientName:{color:"#EFEFEF",fontSize:13,fontWeight:"700"},clientMeta:{color:"#888",fontSize:8.5,marginTop:3},clientStats:{color:"#8D7751",fontSize:6.8,letterSpacing:.45,marginTop:5,fontWeight:"800"},
+  searchShell:{minHeight:52,borderRadius:15,borderWidth:1,borderColor:"#272727",backgroundColor:PANEL,flexDirection:"row",alignItems:"center",paddingHorizontal:15,gap:10},searchIcon:{color:"#8C744A",fontSize:19},searchInput:{flex:1,color:"#E6E6E6",fontSize:10},clientCard:{marginTop:9,minHeight:78,borderRadius:16,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,padding:12,flexDirection:"row",alignItems:"center"},clientAvatar:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:"#4B3A20",backgroundColor:"#151006",alignItems:"center",justifyContent:"center"},clientAvatarText:{color:GOLD_LIGHT,fontSize:16,fontWeight:"800"},clientCopy:{flex:1,marginLeft:11},clientName:{color:"#EFEFEF",fontSize:13,fontWeight:"700"},clientMeta:{color:"#888",fontSize:8.5,marginTop:3},clientStats:{color:"#8D7751",fontSize:6.8,letterSpacing:.45,marginTop:5,fontWeight:"800"},clientNext:{color:"#6F6F6F",fontSize:6.8,marginTop:5},
+  clientBack:{marginTop:20,paddingVertical:8},clientBackText:{color:GOLD_LIGHT,fontSize:8,letterSpacing:1.1,fontWeight:"900"},profileHero:{marginTop:8,borderRadius:20,borderWidth:1,borderColor:"#2D281F",backgroundColor:"#0B0A08",padding:17,flexDirection:"row",alignItems:"center"},profileAvatar:{width:58,height:58,borderRadius:29,borderWidth:1,borderColor:"#5B4522",backgroundColor:"#171106",alignItems:"center",justifyContent:"center"},profileAvatarText:{color:GOLD_LIGHT,fontSize:23,fontWeight:"900"},profileHeroCopy:{flex:1,marginLeft:14},profileName:{color:"#F4F4F4",fontSize:20,fontWeight:"750"},profileContact:{color:"#858585",fontSize:9,marginTop:4},regularPill:{borderRadius:12,borderWidth:1,borderColor:"#5A4523",backgroundColor:"#171107",paddingHorizontal:8,paddingVertical:6},regularText:{color:GOLD_LIGHT,fontSize:6,letterSpacing:.8,fontWeight:"900"},clientActionGrid:{flexDirection:"row",gap:7,marginTop:10},clientAction:{flex:1,minHeight:58,borderRadius:14,borderWidth:1,borderColor:"#29251D",backgroundColor:"#0D0B08",alignItems:"center",justifyContent:"center"},clientActionIcon:{color:GOLD_LIGHT,fontSize:16},clientActionText:{color:"#9E8964",fontSize:5.7,letterSpacing:.55,fontWeight:"900",marginTop:5},profileFacts:{marginTop:12,borderRadius:17,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,overflow:"hidden"},profileFact:{minHeight:65,paddingHorizontal:15,justifyContent:"center",borderBottomWidth:1,borderBottomColor:"#1D1D1D"},profileFactLabel:{color:"#7F6C4B",fontSize:6.5,letterSpacing:1.1,fontWeight:"900"},profileFactValue:{color:"#ECECEC",fontSize:11.5,fontWeight:"700",marginTop:5},clientNotesCard:{marginTop:14,borderRadius:19,borderWidth:1,borderColor:"#2D281F",backgroundColor:"#0B0A08",padding:16},clientNotesHelp:{color:MUTED,fontSize:9,lineHeight:15,marginTop:8},clientNotesInput:{minHeight:108,borderRadius:13,borderWidth:1,borderColor:"#282828",backgroundColor:"#090909",color:"#EFEFEF",fontSize:10,lineHeight:16,padding:12,marginTop:10,textAlignVertical:"top"},
   settingsHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},savedText:{color:GOLD_LIGHT,fontSize:7.5,letterSpacing:1.2,fontWeight:"900",marginTop:24},settingsGroup:{marginTop:20},settingsTitle:{color:"#8C744A",fontSize:7.5,letterSpacing:1.7,fontWeight:"900",marginBottom:8},settingsCard:{borderRadius:18,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,overflow:"hidden"},settingRow:{minHeight:74,flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:15,paddingVertical:12,gap:12},settingBorder:{borderBottomWidth:1,borderBottomColor:"#1D1D1D"},settingCopy:{flex:1},settingName:{color:"#ECECEC",fontSize:12.5,fontWeight:"700"},settingMeta:{color:"#777",fontSize:8.5,lineHeight:13,marginTop:4},toggle:{width:42,height:24,borderRadius:12,backgroundColor:"#272727",padding:3,justifyContent:"center"},toggleOn:{backgroundColor:GOLD},toggleKnob:{width:18,height:18,borderRadius:9,backgroundColor:"#777"},toggleKnobOn:{backgroundColor:"#090909",alignSelf:"flex-end"},stepper:{minWidth:106,height:34,borderRadius:12,borderWidth:1,borderColor:"#30291E",backgroundColor:"#0A0907",flexDirection:"row",alignItems:"center",justifyContent:"space-between",overflow:"hidden"},stepButton:{width:32,height:34,alignItems:"center",justifyContent:"center"},stepText:{color:GOLD_LIGHT,fontSize:16,fontWeight:"700"},stepValue:{color:"#ECECEC",fontSize:9,fontWeight:"800"},
   bottomWrap:{borderTopWidth:1,borderTopColor:"#171717",paddingHorizontal:8,paddingTop:7,paddingBottom:7,backgroundColor:BG},bottomNav:{minHeight:62,flexDirection:"row",borderRadius:20,borderWidth:1,borderColor:"#202020",backgroundColor:"#0A0A0A",paddingHorizontal:2},navItem:{flex:1,minHeight:54,alignItems:"center",justifyContent:"center",position:"relative"},navIconWrap:{width:27,height:24,alignItems:"center",justifyContent:"center",borderRadius:10},navIconWrapActive:{backgroundColor:"#181207",borderWidth:1,borderColor:"#4D3B1E"},navIcon:{color:"#777",fontSize:15},navIconActive:{color:GOLD_LIGHT},navLabel:{color:"#777",fontSize:7,marginTop:2,fontWeight:"600"},navLabelActive:{color:"#EFE5D3"},navIndicator:{position:"absolute",bottom:1,width:16,height:2,borderRadius:2,backgroundColor:GOLD},pressed:{opacity:.72},
 });

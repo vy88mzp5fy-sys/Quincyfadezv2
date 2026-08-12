@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone, timedelta, date, time
 from zoneinfo import ZoneInfo
 import stripe
+from admin_api import build_admin_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -442,6 +443,7 @@ async def verify_payment_setup(input: PaymentVerifyRequest):
     )
     return {"verified": False, "reason": "No saved payment method is attached."}
 
+api_router.include_router(build_admin_router(db, SERVICES, _get_booking_settings, LONDON))
 app.include_router(api_router)
 
 @app.get("/health")
@@ -465,6 +467,8 @@ async def startup_indexes():
     await db.bookings.create_index([("client_key", 1), ("start_at_utc", 1)])
     await db.bookings.create_index([("status", 1), ("start_at_utc", 1), ("end_at_utc", 1)])
     await db.booking_settings.create_index("key", unique=True)
+    await db.admin_sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.admin_sessions.create_index("token_hash", unique=True)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

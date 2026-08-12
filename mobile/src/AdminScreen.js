@@ -35,6 +35,12 @@ const DAYS = [
   ["4", "Friday"], ["5", "Saturday"], ["6", "Sunday"],
 ];
 
+const INSIGHT_PERIODS = [
+  ["day", "DAY"],
+  ["week", "WEEK"],
+  ["month", "MONTH"],
+];
+
 function money(value) {
   const number = Number(value || 0);
   return `£${number.toFixed(number % 1 ? 2 : 0)}`;
@@ -43,6 +49,11 @@ function money(value) {
 function formatDate(value) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+}
+
+function shortDate(value) {
+  if (!value) return "—";
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function formatTime(value) {
@@ -74,20 +85,18 @@ function SettingsSection({ title, children }) {
 function AppointmentCard({ booking, compact = false, onAction, actionBusy }) {
   const status = booking.status || "confirmed";
   const busy = actionBusy === booking.id;
-  return (
-    <View style={[styles.bookingCard, compact && styles.bookingCardCompact]}>
-      <View style={styles.bookingMain}>
-        <View style={styles.bookingTimeWrap}><Text style={styles.bookingTime}>{formatTime(booking.start_at)}</Text><Text style={styles.bookingDuration}>{booking.duration_minutes || 0} MIN</Text></View>
-        <View style={styles.bookingCopy}><Text style={styles.bookingName}>{booking.customer_name || "Client"}</Text><Text style={styles.bookingService}>{booking.service}</Text><Text style={styles.bookingMeta}>{formatDate(booking.start_at)} · {money(booking.price)}</Text></View>
-        <View style={[styles.statusPill, status === "pending" && styles.statusPending]}><Text style={styles.statusText}>{status.replace("_", " ").toUpperCase()}</Text></View>
-      </View>
-      {!compact && onAction && (status === "confirmed" || status === "pending") ? <View style={styles.bookingActions}>
-        {status === "pending" ? <Pressable disabled={busy} onPress={() => onAction(booking, "confirmed")} style={[styles.bookingActionPrimary, busy && styles.disabled]}><Text style={styles.bookingActionPrimaryText}>APPROVE</Text></Pressable> : <Pressable disabled={busy} onPress={() => onAction(booking, "completed")} style={[styles.bookingActionPrimary, busy && styles.disabled]}><Text style={styles.bookingActionPrimaryText}>COMPLETE</Text></Pressable>}
-        {status === "confirmed" ? <Pressable disabled={busy} onPress={() => onAction(booking, "no_show")} style={[styles.bookingAction, busy && styles.disabled]}><Text style={styles.bookingActionText}>NO-SHOW</Text></Pressable> : null}
-        <Pressable disabled={busy} onPress={() => onAction(booking, "cancelled")} style={[styles.bookingActionDanger, busy && styles.disabled]}><Text style={styles.bookingActionDangerText}>{status === "pending" ? "DECLINE" : "CANCEL"}</Text></Pressable>
-      </View> : null}
+  return <View style={[styles.bookingCard, compact && styles.bookingCardCompact]}>
+    <View style={styles.bookingMain}>
+      <View style={styles.bookingTimeWrap}><Text style={styles.bookingTime}>{formatTime(booking.start_at)}</Text><Text style={styles.bookingDuration}>{booking.duration_minutes || 0} MIN</Text></View>
+      <View style={styles.bookingCopy}><Text style={styles.bookingName}>{booking.customer_name || "Client"}</Text><Text style={styles.bookingService}>{booking.service}</Text><Text style={styles.bookingMeta}>{formatDate(booking.start_at)} · {money(booking.price)}</Text></View>
+      <View style={[styles.statusPill, status === "pending" && styles.statusPending]}><Text style={styles.statusText}>{status.replace("_", " ").toUpperCase()}</Text></View>
     </View>
-  );
+    {!compact && onAction && (status === "confirmed" || status === "pending") ? <View style={styles.bookingActions}>
+      {status === "pending" ? <Pressable disabled={busy} onPress={() => onAction(booking, "confirmed")} style={[styles.bookingActionPrimary, busy && styles.disabled]}><Text style={styles.bookingActionPrimaryText}>APPROVE</Text></Pressable> : <Pressable disabled={busy} onPress={() => onAction(booking, "completed")} style={[styles.bookingActionPrimary, busy && styles.disabled]}><Text style={styles.bookingActionPrimaryText}>COMPLETE</Text></Pressable>}
+      {status === "confirmed" ? <Pressable disabled={busy} onPress={() => onAction(booking, "no_show")} style={[styles.bookingAction, busy && styles.disabled]}><Text style={styles.bookingActionText}>NO-SHOW</Text></Pressable> : null}
+      <Pressable disabled={busy} onPress={() => onAction(booking, "cancelled")} style={[styles.bookingActionDanger, busy && styles.disabled]}><Text style={styles.bookingActionDangerText}>{status === "pending" ? "DECLINE" : "CANCEL"}</Text></Pressable>
+    </View> : null}
+  </View>;
 }
 
 function Login({ onLogin }) {
@@ -110,35 +119,11 @@ function Login({ onLogin }) {
 function WorkingHoursEditor({ weeklyHours, saving, onSave }) {
   const [draft, setDraft] = useState(weeklyHours || {});
   useEffect(() => setDraft(weeklyHours || {}), [weeklyHours]);
-
   const addWindow = (dayKey) => setDraft((current) => ({ ...current, [dayKey]: [...(current[dayKey] || []), ["", ""]] }));
   const removeWindow = (dayKey, index) => setDraft((current) => ({ ...current, [dayKey]: (current[dayKey] || []).filter((_, i) => i !== index) }));
-  const changeWindow = (dayKey, index, side, value) => setDraft((current) => {
-    const windows = [...(current[dayKey] || [])];
-    const next = [...(windows[index] || ["", ""])];
-    next[side] = value;
-    windows[index] = next;
-    return { ...current, [dayKey]: windows };
-  });
+  const changeWindow = (dayKey, index, side, value) => setDraft((current) => { const windows = [...(current[dayKey] || [])]; const next = [...(windows[index] || ["", ""])]; next[side] = value; windows[index] = next; return { ...current, [dayKey]: windows }; });
   const valid = Object.values(draft).every((windows) => (windows || []).every((window) => /^\d{2}:\d{2}$/.test(window?.[0] || "") && /^\d{2}:\d{2}$/.test(window?.[1] || "") && window[1] > window[0]));
-
-  return <View style={styles.managerCard}>
-    <View style={styles.managerHeader}><View><Text style={styles.sectionEyebrow}>WEEKLY AVAILABILITY</Text><Text style={styles.sectionTitle}>Working Hours</Text></View><Pressable disabled={saving || !valid} onPress={() => onSave(draft)} style={[styles.managerSave, (!valid || saving) && styles.disabled]}><Text style={styles.managerSaveText}>{saving ? "SAVING…" : "SAVE"}</Text></Pressable></View>
-    <Text style={styles.managerText}>Set exactly when clients can book you. Leave a day closed if you do not work it. Add another window for split shifts or breaks.</Text>
-    {DAYS.map(([key, label]) => {
-      const windows = draft[key] || [];
-      return <View key={key} style={styles.dayCard}>
-        <View style={styles.dayTop}><View><Text style={styles.dayName}>{label}</Text><Text style={styles.dayStatus}>{windows.length ? `${windows.length} WORKING WINDOW${windows.length > 1 ? "S" : ""}` : "CLOSED"}</Text></View><Pressable onPress={() => windows.length ? setDraft((current) => ({ ...current, [key]: [] })) : addWindow(key)} style={[styles.dayToggle, windows.length && styles.dayToggleOn]}><Text style={[styles.dayToggleText, windows.length && styles.dayToggleTextOn]}>{windows.length ? "OPEN" : "CLOSED"}</Text></Pressable></View>
-        {windows.map((window, index) => <View key={`${key}-${index}`} style={styles.windowRow}>
-          <View style={styles.timeField}><Text style={styles.timeFieldLabel}>START</Text><TextInput value={window[0]} onChangeText={(value) => changeWindow(key, index, 0, value)} placeholder="09:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /></View>
-          <Text style={styles.windowDash}>—</Text>
-          <View style={styles.timeField}><Text style={styles.timeFieldLabel}>END</Text><TextInput value={window[1]} onChangeText={(value) => changeWindow(key, index, 1, value)} placeholder="17:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /></View>
-          <Pressable onPress={() => removeWindow(key, index)} style={styles.removeWindow}><Text style={styles.removeWindowText}>×</Text></Pressable>
-        </View>)}
-        {windows.length ? <Pressable onPress={() => addWindow(key)} style={styles.addWindow}><Text style={styles.addWindowText}>＋ ADD ANOTHER WINDOW</Text></Pressable> : null}
-      </View>;
-    })}
-  </View>;
+  return <View style={styles.managerCard}><View style={styles.managerHeader}><View><Text style={styles.sectionEyebrow}>WEEKLY AVAILABILITY</Text><Text style={styles.sectionTitle}>Working Hours</Text></View><Pressable disabled={saving || !valid} onPress={() => onSave(draft)} style={[styles.managerSave, (!valid || saving) && styles.disabled]}><Text style={styles.managerSaveText}>{saving ? "SAVING…" : "SAVE"}</Text></Pressable></View><Text style={styles.managerText}>Set exactly when clients can book you. Leave a day closed if you do not work it. Add another window for split shifts or breaks.</Text>{DAYS.map(([key, label]) => { const windows = draft[key] || []; return <View key={key} style={styles.dayCard}><View style={styles.dayTop}><View><Text style={styles.dayName}>{label}</Text><Text style={styles.dayStatus}>{windows.length ? `${windows.length} WORKING WINDOW${windows.length > 1 ? "S" : ""}` : "CLOSED"}</Text></View><Pressable onPress={() => windows.length ? setDraft((current) => ({ ...current, [key]: [] })) : addWindow(key)} style={[styles.dayToggle, windows.length && styles.dayToggleOn]}><Text style={[styles.dayToggleText, windows.length && styles.dayToggleTextOn]}>{windows.length ? "OPEN" : "CLOSED"}</Text></Pressable></View>{windows.map((window, index) => <View key={`${key}-${index}`} style={styles.windowRow}><View style={styles.timeField}><Text style={styles.timeFieldLabel}>START</Text><TextInput value={window[0]} onChangeText={(value) => changeWindow(key, index, 0, value)} placeholder="09:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /></View><Text style={styles.windowDash}>—</Text><View style={styles.timeField}><Text style={styles.timeFieldLabel}>END</Text><TextInput value={window[1]} onChangeText={(value) => changeWindow(key, index, 1, value)} placeholder="17:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /></View><Pressable onPress={() => removeWindow(key, index)} style={styles.removeWindow}><Text style={styles.removeWindowText}>×</Text></Pressable></View>)}{windows.length ? <Pressable onPress={() => addWindow(key)} style={styles.addWindow}><Text style={styles.addWindowText}>＋ ADD ANOTHER WINDOW</Text></Pressable> : null}</View>; })}</View>;
 }
 
 function BlockTimeEditor({ blocks, busy, onCreate, onDelete }) {
@@ -147,26 +132,40 @@ function BlockTimeEditor({ blocks, busy, onCreate, onDelete }) {
   const [startValue, setStartValue] = useState("");
   const [endValue, setEndValue] = useState("");
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(dateValue) && /^\d{2}:\d{2}$/.test(startValue) && /^\d{2}:\d{2}$/.test(endValue) && endValue > startValue;
-  const submit = () => {
-    if (!valid || busy) return;
-    const start = new Date(`${dateValue}T${startValue}:00`);
-    const end = new Date(`${dateValue}T${endValue}:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
-    onCreate({ label: label.trim() || "Blocked Time", start_at: start.toISOString(), end_at: end.toISOString() }).then((ok) => { if (ok) { setLabel(""); setDateValue(""); setStartValue(""); setEndValue(""); } });
-  };
+  const submit = () => { if (!valid || busy) return; const start = new Date(`${dateValue}T${startValue}:00`); const end = new Date(`${dateValue}T${endValue}:00`); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return; onCreate({ label: label.trim() || "Blocked Time", start_at: start.toISOString(), end_at: end.toISOString() }).then((ok) => { if (ok) { setLabel(""); setDateValue(""); setStartValue(""); setEndValue(""); } }); };
   const upcoming = [...(blocks || [])].sort((a, b) => String(a.start).localeCompare(String(b.start)));
-  return <View style={styles.managerCard}>
-    <View style={styles.managerHeader}><View><Text style={styles.sectionEyebrow}>TIME OFF & CLOSURES</Text><Text style={styles.sectionTitle}>Block Time</Text></View></View>
-    <Text style={styles.managerText}>Block a break, appointment, holiday or any time you do not want clients to book. It immediately removes overlapping slots.</Text>
-    <View style={styles.blockForm}>
-      <TextInput value={label} onChangeText={setLabel} placeholder="Label — e.g. Lunch, Holiday" placeholderTextColor="#555" style={styles.blockInput} />
-      <TextInput value={dateValue} onChangeText={setDateValue} placeholder="YYYY-MM-DD" placeholderTextColor="#555" maxLength={10} keyboardType="numbers-and-punctuation" style={styles.blockInput} />
-      <View style={styles.blockTimeRow}><TextInput value={startValue} onChangeText={setStartValue} placeholder="Start 13:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={[styles.blockInput, styles.blockTimeInput]} /><TextInput value={endValue} onChangeText={setEndValue} placeholder="End 14:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={[styles.blockInput, styles.blockTimeInput]} /></View>
-      <Pressable disabled={!valid || busy} onPress={submit} style={[styles.blockButton, (!valid || busy) && styles.disabled]}><Text style={styles.blockButtonText}>{busy ? "BLOCKING…" : "BLOCK THIS TIME"}</Text></Pressable>
-    </View>
-    <Text style={styles.subSectionLabel}>BLOCKED PERIODS</Text>
-    {upcoming.length ? upcoming.map((block) => <View key={block.id || `${block.start}-${block.end}`} style={styles.blockItem}><View style={styles.blockItemCopy}><Text style={styles.blockItemTitle}>{block.label || "Blocked Time"}</Text><Text style={styles.blockItemMeta}>{formatDate(block.start)} · {formatTime(block.start)}–{formatTime(block.end)}</Text></View>{block.id ? <Pressable disabled={busy} onPress={() => onDelete(block.id)} style={styles.blockDelete}><Text style={styles.blockDeleteText}>REMOVE</Text></Pressable> : null}</View>) : <Text style={styles.emptyLine}>No blocked time added yet.</Text>}
+  return <View style={styles.managerCard}><View style={styles.managerHeader}><View><Text style={styles.sectionEyebrow}>TIME OFF & CLOSURES</Text><Text style={styles.sectionTitle}>Block Time</Text></View></View><Text style={styles.managerText}>Block a break, appointment, holiday or any time you do not want clients to book. It immediately removes overlapping slots.</Text><View style={styles.blockForm}><TextInput value={label} onChangeText={setLabel} placeholder="Label — e.g. Lunch, Holiday" placeholderTextColor="#555" style={styles.blockInput} /><TextInput value={dateValue} onChangeText={setDateValue} placeholder="YYYY-MM-DD" placeholderTextColor="#555" maxLength={10} keyboardType="numbers-and-punctuation" style={styles.blockInput} /><View style={styles.blockTimeRow}><TextInput value={startValue} onChangeText={setStartValue} placeholder="Start 13:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={[styles.blockInput, styles.blockTimeInput]} /><TextInput value={endValue} onChangeText={setEndValue} placeholder="End 14:00" placeholderTextColor="#555" maxLength={5} keyboardType="numbers-and-punctuation" style={[styles.blockInput, styles.blockTimeInput]} /></View><Pressable disabled={!valid || busy} onPress={submit} style={[styles.blockButton, (!valid || busy) && styles.disabled]}><Text style={styles.blockButtonText}>{busy ? "BLOCKING…" : "BLOCK THIS TIME"}</Text></Pressable></View><Text style={styles.subSectionLabel}>BLOCKED PERIODS</Text>{upcoming.length ? upcoming.map((block) => <View key={block.id || `${block.start}-${block.end}`} style={styles.blockItem}><View style={styles.blockItemCopy}><Text style={styles.blockItemTitle}>{block.label || "Blocked Time"}</Text><Text style={styles.blockItemMeta}>{formatDate(block.start)} · {formatTime(block.start)}–{formatTime(block.end)}</Text></View>{block.id ? <Pressable disabled={busy} onPress={() => onDelete(block.id)} style={styles.blockDelete}><Text style={styles.blockDeleteText}>REMOVE</Text></Pressable> : null}</View>) : <Text style={styles.emptyLine}>No blocked time added yet.</Text>}</View>;
+}
+
+function InsightsChart({ trend, period }) {
+  const items = trend || [];
+  const maxRevenue = Math.max(1, ...items.map((item) => Number(item.revenue || 0)));
+  const displayed = period === "month" && items.length > 16 ? items.filter((_, index) => index % 2 === 0) : items;
+  return <View style={styles.chartCard}>
+    <View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>REVENUE TREND</Text><Text style={styles.sectionTitle}>Performance</Text></View><Text style={styles.mutedSmall}>COMPLETED VISITS</Text></View>
+    <View style={styles.chartArea}>{displayed.map((item, index) => { const height = Math.max(3, Math.round((Number(item.revenue || 0) / maxRevenue) * 112)); const label = period === "day" ? "TODAY" : new Date(`${item.date}T12:00:00`).toLocaleDateString("en-GB", { weekday: period === "week" ? "short" : undefined, day: period === "month" ? "numeric" : undefined }); return <View key={`${item.date}-${index}`} style={styles.chartColumn}><View style={styles.chartBarTrack}><View style={[styles.chartBar, { height }]} /></View><Text numberOfLines={1} style={styles.chartLabel}>{label}</Text></View>; })}</View>
   </View>;
+}
+
+function InsightsPanel({ data, period, setPeriod, loading }) {
+  const hasActivity = Number(data?.bookings || 0) > 0 || Number(data?.revenue || 0) > 0;
+  return <>
+    <Text style={styles.kicker}>INSIGHTS</Text><Text style={styles.pageTitle}>Know Your Business.</Text><Text style={styles.pageText}>Real performance data only. Revenue is based on completed appointments, not future bookings.</Text>
+    <View style={styles.insightPeriodRow}>{INSIGHT_PERIODS.map(([key, label]) => <Pressable key={key} disabled={loading} onPress={() => setPeriod(key)} style={[styles.insightPeriod, period === key && styles.insightPeriodActive]}><Text style={[styles.insightPeriodText, period === key && styles.insightPeriodTextActive]}>{label}</Text></Pressable>)}</View>
+    {data ? <View style={styles.insightRange}><Text style={styles.insightRangeLabel}>{period.toUpperCase()} VIEW</Text><Text style={styles.insightRangeValue}>{shortDate(data.start_date)} — {shortDate(data.end_date)}</Text></View> : null}
+    {!data && loading ? <View style={styles.emptyCard}><ActivityIndicator color={GOLD_LIGHT} /><Text style={styles.emptyTitle}>Loading Insights</Text></View> : null}
+    {data ? <>
+      <View style={styles.metricsGrid}><MetricCard label="REVENUE" value={money(data.revenue)} meta="Completed appointments" /><MetricCard label="BOOKINGS" value={String(data.bookings || 0)} meta="Active bookings" /><MetricCard label="NEW CLIENTS" value={String(data.new_clients || 0)} meta="First visits" /><MetricCard label="AVG. BOOKING" value={money(data.average_booking_value)} meta="Completed visits" /></View>
+      {hasActivity ? <InsightsChart trend={data.trend} period={period} /> : <View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>PERFORMANCE</Text><Text style={styles.emptyTitle}>No Insights Yet</Text><Text style={styles.emptyText}>This period has no real booking activity yet. Your insights will build automatically as appointments are completed.</Text></View>}
+      <View style={styles.insightDetailGrid}>
+        <View style={styles.insightDetail}><Text style={styles.insightDetailLabel}>HOURS WORKED</Text><Text style={styles.insightDetailValue}>{Number(data.hours_worked || 0).toFixed(1)}h</Text></View>
+        <View style={styles.insightDetail}><Text style={styles.insightDetailLabel}>UTILISATION</Text><Text style={styles.insightDetailValue}>{data.utilisation_percent == null ? "—" : `${data.utilisation_percent}%`}</Text></View>
+        <View style={styles.insightDetail}><Text style={styles.insightDetailLabel}>CANCELLATIONS</Text><Text style={styles.insightDetailValue}>{data.cancellations || 0}</Text></View>
+        <View style={styles.insightDetail}><Text style={styles.insightDetailLabel}>NO-SHOWS</Text><Text style={styles.insightDetailValue}>{data.no_shows || 0}</Text></View>
+      </View>
+      <View style={styles.insightHighlight}><Text style={styles.sectionEyebrow}>TOP SERVICE</Text><Text style={styles.insightHighlightValue}>{data.top_service || "No Completed Service Yet"}</Text><Text style={styles.insightHighlightMeta}>{data.completed || 0} completed appointment{Number(data.completed || 0) === 1 ? "" : "s"} in this period</Text></View>
+    </> : null}
+  </>;
 }
 
 function ClientProfile({ data, noteDraft, setNoteDraft, saving, onBack, onSaveNote }) {
@@ -177,44 +176,7 @@ function ClientProfile({ data, noteDraft, setNoteDraft, saving, onBack, onSaveNo
   const openMessage = () => client.phone && Linking.openURL(`sms:${client.phone}`).catch(() => {});
   const openWhatsApp = () => client.phone && Linking.openURL(`https://wa.me/${String(client.phone).replace(/\D/g, "")}`).catch(() => {});
   const openEmail = () => client.email && Linking.openURL(`mailto:${client.email}`).catch(() => {});
-
-  return <>
-    <Pressable onPress={onBack} style={styles.clientBack}><Text style={styles.clientBackText}>‹ CLIENTS</Text></Pressable>
-    <View style={styles.profileHero}>
-      <View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View>
-      <View style={styles.profileHeroCopy}><Text style={styles.profileName}>{client.name || "Client"}</Text><Text style={styles.profileContact}>{client.phone || "No phone saved"}</Text>{client.email ? <Text style={styles.profileContact}>{client.email}</Text> : null}</View>
-      {client.regular ? <View style={styles.regularPill}><Text style={styles.regularText}>REGULAR</Text></View> : null}
-    </View>
-
-    <View style={styles.clientActionGrid}>
-      <Pressable disabled={!client.phone} onPress={openPhone} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>☎</Text><Text style={styles.clientActionText}>CALL</Text></Pressable>
-      <Pressable disabled={!client.phone} onPress={openMessage} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>✉</Text><Text style={styles.clientActionText}>MESSAGE</Text></Pressable>
-      <Pressable disabled={!client.phone} onPress={openWhatsApp} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>◉</Text><Text style={styles.clientActionText}>WHATSAPP</Text></Pressable>
-      <Pressable disabled={!client.email} onPress={openEmail} style={[styles.clientAction, !client.email && styles.disabled]}><Text style={styles.clientActionIcon}>@</Text><Text style={styles.clientActionText}>EMAIL</Text></Pressable>
-    </View>
-
-    <View style={styles.metricsGrid}>
-      <MetricCard label="COMPLETED" value={String(client.completed_count || 0)} meta="Finished visits" />
-      <MetricCard label="TOTAL SPEND" value={money(client.total_spend)} meta="Completed visits only" />
-      <MetricCard label="NO-SHOWS" value={String(client.no_show_count || 0)} meta="Recorded no-shows" />
-      <MetricCard label="CANCELLED" value={String(client.cancelled_count || 0)} meta="Cancelled bookings" />
-    </View>
-
-    <View style={styles.profileFacts}>
-      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST VISIT</Text><Text style={styles.profileFactValue}>{formatDate(client.last_visit)}</Text></View>
-      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST SERVICE</Text><Text style={styles.profileFactValue}>{client.last_service || "—"}</Text></View>
-      <View style={styles.profileFact}><Text style={styles.profileFactLabel}>NEXT VISIT</Text><Text style={styles.profileFactValue}>{client.next_booking ? `${formatDate(client.next_booking.start_at)} · ${formatTime(client.next_booking.start_at)}` : "None Booked"}</Text></View>
-    </View>
-
-    <View style={styles.clientNotesCard}>
-      <View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>PRIVATE</Text><Text style={styles.sectionTitle}>Client Notes</Text></View><Pressable disabled={saving} onPress={onSaveNote} style={[styles.smallPill, saving && styles.disabled]}><Text style={styles.smallPillText}>{saving ? "SAVING…" : "SAVE"}</Text></Pressable></View>
-      <Text style={styles.clientNotesHelp}>Keep useful barber notes here — preferences, usual cut, conversation reminders or anything that helps the next appointment.</Text>
-      <TextInput value={noteDraft} onChangeText={setNoteDraft} multiline maxLength={2000} placeholder="Add a private client note…" placeholderTextColor="#555" style={styles.clientNotesInput} />
-    </View>
-
-    <View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>UPCOMING</Text><Text style={styles.sectionTitle}>Next Appointments</Text></View><Text style={styles.mutedSmall}>{upcoming.length}</Text></View>{upcoming.length ? upcoming.map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No upcoming appointments.</Text>}</View>
-    <View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>HISTORY</Text><Text style={styles.sectionTitle}>Booking History</Text></View><Text style={styles.mutedSmall}>{history.length}</Text></View>{history.length ? history.slice(0, 20).map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No previous appointments.</Text>}</View>
-  </>;
+  return <><Pressable onPress={onBack} style={styles.clientBack}><Text style={styles.clientBackText}>‹ CLIENTS</Text></Pressable><View style={styles.profileHero}><View style={styles.profileAvatar}><Text style={styles.profileAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View><View style={styles.profileHeroCopy}><Text style={styles.profileName}>{client.name || "Client"}</Text><Text style={styles.profileContact}>{client.phone || "No phone saved"}</Text>{client.email ? <Text style={styles.profileContact}>{client.email}</Text> : null}</View>{client.regular ? <View style={styles.regularPill}><Text style={styles.regularText}>REGULAR</Text></View> : null}</View><View style={styles.clientActionGrid}><Pressable disabled={!client.phone} onPress={openPhone} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>☎</Text><Text style={styles.clientActionText}>CALL</Text></Pressable><Pressable disabled={!client.phone} onPress={openMessage} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>✉</Text><Text style={styles.clientActionText}>MESSAGE</Text></Pressable><Pressable disabled={!client.phone} onPress={openWhatsApp} style={[styles.clientAction, !client.phone && styles.disabled]}><Text style={styles.clientActionIcon}>◉</Text><Text style={styles.clientActionText}>WHATSAPP</Text></Pressable><Pressable disabled={!client.email} onPress={openEmail} style={[styles.clientAction, !client.email && styles.disabled]}><Text style={styles.clientActionIcon}>@</Text><Text style={styles.clientActionText}>EMAIL</Text></Pressable></View><View style={styles.metricsGrid}><MetricCard label="COMPLETED" value={String(client.completed_count || 0)} meta="Finished visits" /><MetricCard label="TOTAL SPEND" value={money(client.total_spend)} meta="Completed visits only" /><MetricCard label="NO-SHOWS" value={String(client.no_show_count || 0)} meta="Recorded no-shows" /><MetricCard label="CANCELLED" value={String(client.cancelled_count || 0)} meta="Cancelled bookings" /></View><View style={styles.profileFacts}><View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST VISIT</Text><Text style={styles.profileFactValue}>{formatDate(client.last_visit)}</Text></View><View style={styles.profileFact}><Text style={styles.profileFactLabel}>LAST SERVICE</Text><Text style={styles.profileFactValue}>{client.last_service || "—"}</Text></View><View style={styles.profileFact}><Text style={styles.profileFactLabel}>NEXT VISIT</Text><Text style={styles.profileFactValue}>{client.next_booking ? `${formatDate(client.next_booking.start_at)} · ${formatTime(client.next_booking.start_at)}` : "None Booked"}</Text></View></View><View style={styles.clientNotesCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>PRIVATE</Text><Text style={styles.sectionTitle}>Client Notes</Text></View><Pressable disabled={saving} onPress={onSaveNote} style={[styles.smallPill, saving && styles.disabled]}><Text style={styles.smallPillText}>{saving ? "SAVING…" : "SAVE"}</Text></Pressable></View><Text style={styles.clientNotesHelp}>Keep useful barber notes here — preferences, usual cut, conversation reminders or anything that helps the next appointment.</Text><TextInput value={noteDraft} onChangeText={setNoteDraft} multiline maxLength={2000} placeholder="Add a private client note…" placeholderTextColor="#555" style={styles.clientNotesInput} /></View><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>UPCOMING</Text><Text style={styles.sectionTitle}>Next Appointments</Text></View><Text style={styles.mutedSmall}>{upcoming.length}</Text></View>{upcoming.length ? upcoming.map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No upcoming appointments.</Text>}</View><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>HISTORY</Text><Text style={styles.sectionTitle}>Booking History</Text></View><Text style={styles.mutedSmall}>{history.length}</Text></View>{history.length ? history.slice(0, 20).map((booking) => <AppointmentCard key={booking.id} booking={booking} />) : <Text style={styles.emptyLine}>No previous appointments.</Text>}</View></>;
 }
 
 export default function AdminScreen({ onExit }) {
@@ -222,6 +184,8 @@ export default function AdminScreen({ onExit }) {
   const [checking, setChecking] = useState(true);
   const [tab, setTab] = useState("home");
   const [overview, setOverview] = useState(null);
+  const [insights, setInsights] = useState(null);
+  const [insightsPeriod, setInsightsPeriod] = useState("week");
   const [bookings, setBookings] = useState([]);
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState("");
@@ -252,106 +216,38 @@ export default function AdminScreen({ onExit }) {
     if (!token) return;
     setLoading(true); setError(""); setSavedMessage("");
     try {
-      if (tab === "home" || tab === "insights") setOverview(await adminRequest("/api/admin/overview"));
-      if (tab === "schedule") {
-        const [bookingData, settingsData] = await Promise.all([adminRequest("/api/admin/bookings?days=7"), adminRequest("/api/admin/settings")]);
-        setBookings(bookingData.bookings || []); setSettings(settingsData.settings || null);
-      }
+      if (tab === "home") setOverview(await adminRequest("/api/admin/overview"));
+      if (tab === "insights") setInsights(await adminRequest(`/api/admin/insights?period=${insightsPeriod}`));
+      if (tab === "schedule") { const [bookingData, settingsData] = await Promise.all([adminRequest("/api/admin/bookings?days=7"), adminRequest("/api/admin/settings")]); setBookings(bookingData.bookings || []); setSettings(settingsData.settings || null); }
       if (tab === "clients" && !selectedClient) setClients((await adminRequest("/api/admin/clients")).clients || []);
       if (tab === "settings") setSettings((await adminRequest("/api/admin/settings")).settings || null);
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  useEffect(() => { loadTab(); }, [token, tab]);
+  useEffect(() => { loadTab(); }, [token, tab, insightsPeriod]);
 
-  const logout = async () => {
-    try { if (token) await fetch(`${API_URL}/api/admin/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); } catch (_) {}
-    await AsyncStorage.removeItem(TOKEN_KEY); setToken(""); setOverview(null); setBookings([]); setClients([]); setSettings(null); setSelectedClient(""); setClientDetail(null);
-  };
+  const logout = async () => { try { if (token) await fetch(`${API_URL}/api/admin/logout`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); } catch (_) {} await AsyncStorage.removeItem(TOKEN_KEY); setToken(""); setOverview(null); setInsights(null); setBookings([]); setClients([]); setSettings(null); setSelectedClient(""); setClientDetail(null); };
 
-  const updateBookingStatus = async (booking, status) => {
-    if (!booking?.id || actionBusy) return;
-    setActionBusy(booking.id); setError("");
-    try { await adminRequest(`/api/admin/bookings/${booking.id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); await loadTab(); }
-    catch (err) { setError(err.message); } finally { setActionBusy(""); }
-  };
+  const updateBookingStatus = async (booking, status) => { if (!booking?.id || actionBusy) return; setActionBusy(booking.id); setError(""); try { await adminRequest(`/api/admin/bookings/${booking.id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }); await loadTab(); } catch (err) { setError(err.message); } finally { setActionBusy(""); } };
 
-  const saveSettings = async (patch) => {
-    if (!token || saving) return false;
-    const optimistic = { ...(settings || {}), ...patch };
-    if (patch.automations) optimistic.automations = { ...(settings?.automations || {}), ...patch.automations };
-    if (patch.growth_settings) optimistic.growth_settings = { ...(settings?.growth_settings || {}), ...patch.growth_settings };
-    setSettings(optimistic); setSaving(true); setError(""); setSavedMessage("");
-    try {
-      const data = await adminRequest("/api/admin/settings", { method: "PUT", body: JSON.stringify(patch) });
-      setSettings(data.settings || optimistic); setSavedMessage("Saved"); setTimeout(() => setSavedMessage(""), 1600); return true;
-    } catch (err) { setError(err.message); await loadTab(); return false; } finally { setSaving(false); }
-  };
-
+  const saveSettings = async (patch) => { if (!token || saving) return false; const optimistic = { ...(settings || {}), ...patch }; if (patch.automations) optimistic.automations = { ...(settings?.automations || {}), ...patch.automations }; if (patch.growth_settings) optimistic.growth_settings = { ...(settings?.growth_settings || {}), ...patch.growth_settings }; setSettings(optimistic); setSaving(true); setError(""); setSavedMessage(""); try { const data = await adminRequest("/api/admin/settings", { method: "PUT", body: JSON.stringify(patch) }); setSettings(data.settings || optimistic); setSavedMessage("Saved"); setTimeout(() => setSavedMessage(""), 1600); return true; } catch (err) { setError(err.message); await loadTab(); return false; } finally { setSaving(false); } };
   const updateAutomation = (key, patch) => saveSettings({ automations: { [key]: { ...(settings?.automations?.[key] || {}), ...patch } } });
-
-  const createBlockedTime = async (payload) => {
-    if (blockBusy) return false;
-    setBlockBusy(true); setError("");
-    try { const data = await adminRequest("/api/admin/blocked-time", { method: "POST", body: JSON.stringify(payload) }); setSettings(data.settings || settings); return true; }
-    catch (err) { setError(err.message); return false; } finally { setBlockBusy(false); }
-  };
-
-  const deleteBlockedTime = async (id) => {
-    if (!id || blockBusy) return;
-    setBlockBusy(true); setError("");
-    try { const data = await adminRequest(`/api/admin/blocked-time/${id}`, { method: "DELETE" }); setSettings(data.settings || settings); }
-    catch (err) { setError(err.message); } finally { setBlockBusy(false); }
-  };
-
-  const openClient = async (clientKey) => {
-    if (!clientKey || clientBusy) return;
-    setClientBusy(true); setError("");
-    try {
-      const data = await adminRequest(`/api/admin/clients/${encodeURIComponent(clientKey)}`);
-      setSelectedClient(clientKey); setClientDetail(data); setClientNoteDraft(data?.client?.notes || "");
-    } catch (err) { setError(err.message); } finally { setClientBusy(false); }
-  };
-
+  const createBlockedTime = async (payload) => { if (blockBusy) return false; setBlockBusy(true); setError(""); try { const data = await adminRequest("/api/admin/blocked-time", { method: "POST", body: JSON.stringify(payload) }); setSettings(data.settings || settings); return true; } catch (err) { setError(err.message); return false; } finally { setBlockBusy(false); } };
+  const deleteBlockedTime = async (id) => { if (!id || blockBusy) return; setBlockBusy(true); setError(""); try { const data = await adminRequest(`/api/admin/blocked-time/${id}`, { method: "DELETE" }); setSettings(data.settings || settings); } catch (err) { setError(err.message); } finally { setBlockBusy(false); } };
+  const openClient = async (clientKey) => { if (!clientKey || clientBusy) return; setClientBusy(true); setError(""); try { const data = await adminRequest(`/api/admin/clients/${encodeURIComponent(clientKey)}`); setSelectedClient(clientKey); setClientDetail(data); setClientNoteDraft(data?.client?.notes || ""); } catch (err) { setError(err.message); } finally { setClientBusy(false); } };
   const closeClient = () => { setSelectedClient(""); setClientDetail(null); setClientNoteDraft(""); };
+  const saveClientNote = async () => { if (!selectedClient || clientBusy) return; setClientBusy(true); setError(""); try { await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`, { method: "PUT", body: JSON.stringify({ notes: clientNoteDraft }) }); const refreshed = await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`); setClientDetail(refreshed); setClientNoteDraft(refreshed?.client?.notes || ""); setSavedMessage("Saved"); setTimeout(() => setSavedMessage(""), 1600); } catch (err) { setError(err.message); } finally { setClientBusy(false); } };
 
-  const saveClientNote = async () => {
-    if (!selectedClient || clientBusy) return;
-    setClientBusy(true); setError("");
-    try {
-      await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`, { method: "PUT", body: JSON.stringify({ notes: clientNoteDraft }) });
-      const refreshed = await adminRequest(`/api/admin/clients/${encodeURIComponent(selectedClient)}`);
-      setClientDetail(refreshed); setClientNoteDraft(refreshed?.client?.notes || ""); setSavedMessage("Saved"); setTimeout(() => setSavedMessage(""), 1600);
-    } catch (err) { setError(err.message); } finally { setClientBusy(false); }
-  };
-
-  const filteredClients = useMemo(() => {
-    const q = clientSearch.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((client) => [client.name, client.phone, client.email].some((value) => String(value || "").toLowerCase().includes(q)));
-  }, [clients, clientSearch]);
+  const filteredClients = useMemo(() => { const q = clientSearch.trim().toLowerCase(); if (!q) return clients; return clients.filter((client) => [client.name, client.phone, client.email].some((value) => String(value || "").toLowerCase().includes(q))); }, [clients, clientSearch]);
 
   const body = useMemo(() => {
-    if (tab === "home") {
-      const next = overview?.next_booking;
-      const appointments = overview?.appointments || [];
-      return <><View style={styles.heroRow}><View style={styles.heroCopy}><Text style={styles.kicker}>BARBER DASHBOARD</Text><Text style={styles.heroTitle}>Your Day, At A Glance.</Text><Text style={styles.heroText}>Live business data, today’s appointments and the next thing that needs your attention.</Text></View><View style={styles.livePill}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View></View><View style={styles.metricsGrid}><MetricCard label="TODAY'S REVENUE" value={money(overview?.today_revenue)} meta="Completed appointments" /><MetricCard label="TODAY'S BOOKINGS" value={String(overview?.today_bookings ?? 0)} meta="Today" /><MetricCard label="NEW CLIENTS" value={String(overview?.new_clients ?? 0)} meta="First-time clients" /><MetricCard label="UTILISATION" value={overview?.utilisation_percent == null ? "—" : `${overview.utilisation_percent}%`} meta="Booked working time" /></View>{Number(overview?.pending_requests || 0) > 0 ? <View style={styles.requestBanner}><View><Text style={styles.requestLabel}>BOOKING REQUESTS</Text><Text style={styles.requestTitle}>{overview.pending_requests} Awaiting Your Approval</Text></View><Pressable onPress={() => setTab("schedule")} style={styles.requestButton}><Text style={styles.requestButtonText}>REVIEW</Text></Pressable></View> : null}<View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>NEXT UP</Text><Text style={styles.sectionTitle}>{next ? `${formatTime(next.start_at)} · ${next.customer_name || "Client"}` : "No Appointment Waiting"}</Text></View><Pressable onPress={loadTab} style={styles.smallPill}><Text style={styles.smallPillText}>REFRESH</Text></Pressable></View>{next ? <AppointmentCard booking={next} compact /> : <Text style={styles.emptyLine}>Your next confirmed booking will appear here automatically.</Text>}</View><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>TODAY</Text><Text style={styles.sectionTitle}>Today’s Schedule</Text></View><Text style={styles.mutedSmall}>{appointments.length} BOOKINGS</Text></View>{appointments.length ? appointments.slice(0, 5).map((item) => <AppointmentCard key={item.id} booking={item} />) : <Text style={styles.emptyLine}>No appointments to show yet.</Text>}</View></>;
-    }
+    if (tab === "home") { const next = overview?.next_booking; const appointments = overview?.appointments || []; return <><View style={styles.heroRow}><View style={styles.heroCopy}><Text style={styles.kicker}>BARBER DASHBOARD</Text><Text style={styles.heroTitle}>Your Day, At A Glance.</Text><Text style={styles.heroText}>Live business data, today’s appointments and the next thing that needs your attention.</Text></View><View style={styles.livePill}><View style={styles.liveDot} /><Text style={styles.liveText}>LIVE</Text></View></View><View style={styles.metricsGrid}><MetricCard label="TODAY'S REVENUE" value={money(overview?.today_revenue)} meta="Completed appointments" /><MetricCard label="TODAY'S BOOKINGS" value={String(overview?.today_bookings ?? 0)} meta="Today" /><MetricCard label="NEW CLIENTS" value={String(overview?.new_clients ?? 0)} meta="First-time clients" /><MetricCard label="UTILISATION" value={overview?.utilisation_percent == null ? "—" : `${overview.utilisation_percent}%`} meta="Booked working time" /></View>{Number(overview?.pending_requests || 0) > 0 ? <View style={styles.requestBanner}><View><Text style={styles.requestLabel}>BOOKING REQUESTS</Text><Text style={styles.requestTitle}>{overview.pending_requests} Awaiting Your Approval</Text></View><Pressable onPress={() => setTab("schedule")} style={styles.requestButton}><Text style={styles.requestButtonText}>REVIEW</Text></Pressable></View> : null}<View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>NEXT UP</Text><Text style={styles.sectionTitle}>{next ? `${formatTime(next.start_at)} · ${next.customer_name || "Client"}` : "No Appointment Waiting"}</Text></View><Pressable onPress={loadTab} style={styles.smallPill}><Text style={styles.smallPillText}>REFRESH</Text></Pressable></View>{next ? <AppointmentCard booking={next} compact /> : <Text style={styles.emptyLine}>Your next confirmed booking will appear here automatically.</Text>}</View><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>TODAY</Text><Text style={styles.sectionTitle}>Today’s Schedule</Text></View><Text style={styles.mutedSmall}>{appointments.length} BOOKINGS</Text></View>{appointments.length ? appointments.slice(0, 5).map((item) => <AppointmentCard key={item.id} booking={item} />) : <Text style={styles.emptyLine}>No appointments to show yet.</Text>}</View></>; }
 
-    if (tab === "schedule") return <>
-      <Text style={styles.kicker}>SCHEDULE</Text><Text style={styles.pageTitle}>Control Your Time.</Text><Text style={styles.pageText}>Appointments, working hours and time off all in one place.</Text>
-      <View style={styles.scheduleTabs}>{[["appointments", "APPOINTMENTS"],["hours", "WORKING HOURS"],["blocks", "BLOCK TIME"]].map(([key, label]) => <Pressable key={key} onPress={() => setSchedulePanel(key)} style={[styles.scheduleTab, schedulePanel === key && styles.scheduleTabActive]}><Text style={[styles.scheduleTabText, schedulePanel === key && styles.scheduleTabTextActive]}>{label}</Text></Pressable>)}</View>
-      {schedulePanel === "appointments" ? <><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>UPCOMING</Text><Text style={styles.sectionTitle}>Next 7 Days</Text></View><Text style={styles.mutedSmall}>{bookings.length} BOOKINGS</Text></View>{bookings.length ? bookings.map((item) => <AppointmentCard key={item.id} booking={item} onAction={updateBookingStatus} actionBusy={actionBusy} />) : <Text style={styles.emptyLine}>No appointments booked in this period.</Text>}</View><View style={styles.scheduleActions}><Pressable onPress={() => setSchedulePanel("hours")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Working Hours</Text><Text style={styles.actionMeta}>Set normal weekly availability</Text></View><Text style={styles.rowArrow}>›</Text></Pressable><Pressable onPress={() => setSchedulePanel("blocks")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Block Time</Text><Text style={styles.actionMeta}>Breaks, holidays and closures</Text></View><Text style={styles.rowArrow}>›</Text></Pressable><Pressable onPress={() => setTab("settings")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Booking Preferences</Text><Text style={styles.actionMeta}>Approval, notice, window and slot spacing</Text></View><Text style={styles.rowArrow}>›</Text></Pressable></View></> : null}
-      {schedulePanel === "hours" ? <WorkingHoursEditor weeklyHours={settings?.weekly_hours || {}} saving={saving} onSave={(hours) => saveSettings({ weekly_hours: hours })} /> : null}
-      {schedulePanel === "blocks" ? <BlockTimeEditor blocks={settings?.blocked_periods || []} busy={blockBusy} onCreate={createBlockedTime} onDelete={deleteBlockedTime} /> : null}
-    </>;
+    if (tab === "schedule") return <><Text style={styles.kicker}>SCHEDULE</Text><Text style={styles.pageTitle}>Control Your Time.</Text><Text style={styles.pageText}>Appointments, working hours and time off all in one place.</Text><View style={styles.scheduleTabs}>{[["appointments", "APPOINTMENTS"],["hours", "WORKING HOURS"],["blocks", "BLOCK TIME"]].map(([key, label]) => <Pressable key={key} onPress={() => setSchedulePanel(key)} style={[styles.scheduleTab, schedulePanel === key && styles.scheduleTabActive]}><Text style={[styles.scheduleTabText, schedulePanel === key && styles.scheduleTabTextActive]}>{label}</Text></Pressable>)}</View>{schedulePanel === "appointments" ? <><View style={styles.focusCard}><View style={styles.sectionTopRow}><View><Text style={styles.sectionEyebrow}>UPCOMING</Text><Text style={styles.sectionTitle}>Next 7 Days</Text></View><Text style={styles.mutedSmall}>{bookings.length} BOOKINGS</Text></View>{bookings.length ? bookings.map((item) => <AppointmentCard key={item.id} booking={item} onAction={updateBookingStatus} actionBusy={actionBusy} />) : <Text style={styles.emptyLine}>No appointments booked in this period.</Text>}</View><View style={styles.scheduleActions}><Pressable onPress={() => setSchedulePanel("hours")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Working Hours</Text><Text style={styles.actionMeta}>Set normal weekly availability</Text></View><Text style={styles.rowArrow}>›</Text></Pressable><Pressable onPress={() => setSchedulePanel("blocks")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Block Time</Text><Text style={styles.actionMeta}>Breaks, holidays and closures</Text></View><Text style={styles.rowArrow}>›</Text></Pressable><Pressable onPress={() => setTab("settings")} style={styles.actionRow}><View><Text style={styles.actionTitle}>Booking Preferences</Text><Text style={styles.actionMeta}>Approval, notice, window and slot spacing</Text></View><Text style={styles.rowArrow}>›</Text></Pressable></View></> : null}{schedulePanel === "hours" ? <WorkingHoursEditor weeklyHours={settings?.weekly_hours || {}} saving={saving} onSave={(hours) => saveSettings({ weekly_hours: hours })} /> : null}{schedulePanel === "blocks" ? <BlockTimeEditor blocks={settings?.blocked_periods || []} busy={blockBusy} onCreate={createBlockedTime} onDelete={deleteBlockedTime} /> : null}</>;
 
-    if (tab === "insights") return <><Text style={styles.kicker}>INSIGHTS</Text><Text style={styles.pageTitle}>Know Your Business.</Text><Text style={styles.pageText}>No fake demo numbers. This area only shows data created by real QuincyFadez bookings.</Text><View style={[styles.metricsGrid, { marginTop: 12 }]}><MetricCard label="TODAY'S REVENUE" value={money(overview?.today_revenue)} /><MetricCard label="TODAY'S BOOKINGS" value={String(overview?.today_bookings ?? 0)} /><MetricCard label="NEW CLIENTS" value={String(overview?.new_clients ?? 0)} /><MetricCard label="UTILISATION" value={overview?.utilisation_percent == null ? "—" : `${overview.utilisation_percent}%`} /></View><View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>PERFORMANCE</Text><Text style={styles.emptyTitle}>{overview?.today_bookings ? "Insights Are Building" : "No Insights Yet"}</Text><Text style={styles.emptyText}>Revenue, bookings, average booking value, hours, utilisation, cancellations, no-shows and client retention will build from real activity.</Text></View></>;
+    if (tab === "insights") return <InsightsPanel data={insights} period={insightsPeriod} setPeriod={setInsightsPeriod} loading={loading} />;
 
-    if (tab === "clients") {
-      if (selectedClient && clientDetail) return <ClientProfile data={clientDetail} noteDraft={clientNoteDraft} setNoteDraft={setClientNoteDraft} saving={clientBusy} onBack={closeClient} onSaveNote={saveClientNote} />;
-      return <><View style={styles.sectionTopRow}><View><Text style={styles.kicker}>CLIENTS</Text><Text style={styles.pageTitle}>Your Client Book.</Text></View></View><Text style={styles.pageText}>Search real client profiles, booking history and completed spend.</Text><View style={styles.searchShell}><Text style={styles.searchIcon}>⌕</Text><TextInput value={clientSearch} onChangeText={setClientSearch} placeholder="Search Name, Phone Or Email" placeholderTextColor="#666" style={styles.searchInput} /></View>{clientBusy ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>OPENING CLIENT…</Text></View> : null}{filteredClients.length ? filteredClients.map((client) => <Pressable key={client.client_key} onPress={() => openClient(client.client_key)} style={styles.clientCard}><View style={styles.clientAvatar}><Text style={styles.clientAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View><View style={styles.clientCopy}><Text style={styles.clientName}>{client.name || "Client"}</Text><Text style={styles.clientMeta}>{client.phone || client.email || "No contact saved"}</Text><Text style={styles.clientStats}>{client.completed_count || 0} COMPLETED · {money(client.total_spend)} SPEND{client.regular ? " · REGULAR" : ""}</Text>{client.next_booking ? <Text style={styles.clientNext}>NEXT · {formatDate(client.next_booking.start_at)} {formatTime(client.next_booking.start_at)}</Text> : null}</View><Text style={styles.rowArrow}>›</Text></Pressable>) : <View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>CLIENT DIRECTORY</Text><Text style={styles.emptyTitle}>{clientSearch ? "No Matching Clients" : "No Clients Yet"}</Text><Text style={styles.emptyText}>{clientSearch ? "Try another name, number or email." : "Clients appear here automatically after their first in-app booking."}</Text></View>}</>;
-    }
+    if (tab === "clients") { if (selectedClient && clientDetail) return <ClientProfile data={clientDetail} noteDraft={clientNoteDraft} setNoteDraft={setClientNoteDraft} saving={clientBusy} onBack={closeClient} onSaveNote={saveClientNote} />; return <><View style={styles.sectionTopRow}><View><Text style={styles.kicker}>CLIENTS</Text><Text style={styles.pageTitle}>Your Client Book.</Text></View></View><Text style={styles.pageText}>Search real client profiles, booking history and completed spend.</Text><View style={styles.searchShell}><Text style={styles.searchIcon}>⌕</Text><TextInput value={clientSearch} onChangeText={setClientSearch} placeholder="Search Name, Phone Or Email" placeholderTextColor="#666" style={styles.searchInput} /></View>{clientBusy ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>OPENING CLIENT…</Text></View> : null}{filteredClients.length ? filteredClients.map((client) => <Pressable key={client.client_key} onPress={() => openClient(client.client_key)} style={styles.clientCard}><View style={styles.clientAvatar}><Text style={styles.clientAvatarText}>{(client.name || "C").slice(0, 1).toUpperCase()}</Text></View><View style={styles.clientCopy}><Text style={styles.clientName}>{client.name || "Client"}</Text><Text style={styles.clientMeta}>{client.phone || client.email || "No contact saved"}</Text><Text style={styles.clientStats}>{client.completed_count || 0} COMPLETED · {money(client.total_spend)} SPEND{client.regular ? " · REGULAR" : ""}</Text>{client.next_booking ? <Text style={styles.clientNext}>NEXT · {formatDate(client.next_booking.start_at)} {formatTime(client.next_booking.start_at)}</Text> : null}</View><Text style={styles.rowArrow}>›</Text></Pressable>) : <View style={styles.emptyCard}><Text style={styles.emptyEyebrow}>CLIENT DIRECTORY</Text><Text style={styles.emptyTitle}>{clientSearch ? "No Matching Clients" : "No Clients Yet"}</Text><Text style={styles.emptyText}>{clientSearch ? "Try another name, number or email." : "Clients appear here automatically after their first in-app booking."}</Text></View>}</>; }
 
     const automation = settings?.automations || {};
     return <><View style={styles.settingsHeader}><View><Text style={styles.kicker}>SETTINGS</Text><Text style={styles.pageTitle}>Run QuincyFadez Your Way.</Text></View>{saving ? <ActivityIndicator color={GOLD_LIGHT} /> : savedMessage ? <Text style={styles.savedText}>✓ SAVED</Text> : null}</View><Text style={styles.pageText}>Only useful controls for running the business — no filler settings.</Text>
@@ -363,12 +259,11 @@ export default function AdminScreen({ onExit }) {
       <SettingsSection title="BUSINESS SETTINGS"><SettingRow title="Notifications" meta="Master control for business alerts and client automation" control={<Toggle value={Boolean(settings?.notifications_enabled)} disabled={saving} onChange={(value) => saveSettings({ notifications_enabled: value })} />} /><SettingRow last title="Policies" meta="Booking, lateness, cancellation and payment policies" control={<Text style={styles.rowArrow}>›</Text>} /></SettingsSection>
       <SettingsSection title="ACCOUNT & HELP">{[["Account", "Admin security and owner access"],["Help & Support", "Support and diagnostics"],["FAQs", "Common QuincyFadez admin questions"],["Send Feedback", "Send product feedback"]].map(([title, meta]) => <SettingRow key={title} title={title} meta={meta} control={<Text style={styles.rowArrow}>›</Text>} />)}<Pressable onPress={logout}><SettingRow last title="Log Out" meta="End this secure admin session" control={<Text style={[styles.rowArrow, { color: "#D98778" }]}>›</Text>} /></Pressable></SettingsSection>
     </>;
-  }, [tab, overview, bookings, filteredClients, clientSearch, selectedClient, clientDetail, clientNoteDraft, clientBusy, settings, saving, savedMessage, actionBusy, schedulePanel, blockBusy]);
+  }, [tab, overview, insights, insightsPeriod, bookings, filteredClients, clientSearch, selectedClient, clientDetail, clientNoteDraft, clientBusy, settings, saving, savedMessage, actionBusy, schedulePanel, blockBusy, loading]);
 
   if (checking) return <SafeAreaView style={styles.safeArea}><View style={styles.center}><ActivityIndicator color={GOLD_LIGHT} /></View></SafeAreaView>;
   if (!token) return <Login onLogin={setToken} />;
-
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={BG} /><View style={styles.shell}><View style={styles.adminHeader}><View><Text style={styles.brand}>QUINCYFADEZ</Text><Text style={styles.adminLabel}>BARBER ADMIN</Text></View><View style={styles.headerActions}><Pressable onPress={logout} style={styles.exitButton}><Text style={styles.exitText}>LOG OUT</Text></Pressable>{onExit ? <Pressable onPress={onExit} style={styles.exitButton}><Text style={styles.exitText}>EXIT</Text></Pressable> : null}</View></View><ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{loading ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>SYNCING LIVE DATA…</Text></View> : null}{error ? <Text style={styles.errorText}>{error}</Text> : null}{body}</ScrollView><View style={styles.bottomWrap}><View style={styles.bottomNav}>{TABS.map((item) => { const active = tab === item.key; return <Pressable key={item.key} onPress={() => { if (item.key !== "clients") closeClient(); setTab(item.key); }} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}><View style={[styles.navIconWrap, active && styles.navIconWrapActive]}><Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text></View><Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>{active ? <View style={styles.navIndicator} /> : null}</Pressable>; })}</View></View></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={BG} /><View style={styles.shell}><View style={styles.adminHeader}><View><Text style={styles.brand}>QUINCYFADEZ</Text><Text style={styles.adminLabel}>BARBER ADMIN</Text></View><View style={styles.headerActions}><Pressable onPress={logout} style={styles.exitButton}><Text style={styles.exitText}>LOG OUT</Text></Pressable>{onExit ? <Pressable onPress={onExit} style={styles.exitButton}><Text style={styles.exitText}>EXIT</Text></Pressable> : null}</View></View><ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>{loading && tab !== "insights" ? <View style={styles.loadingBar}><ActivityIndicator color={GOLD_LIGHT} size="small" /><Text style={styles.loadingText}>SYNCING LIVE DATA…</Text></View> : null}{error ? <Text style={styles.errorText}>{error}</Text> : null}{body}</ScrollView><View style={styles.bottomWrap}><View style={styles.bottomNav}>{TABS.map((item) => { const active = tab === item.key; return <Pressable key={item.key} onPress={() => { if (item.key !== "clients") closeClient(); setTab(item.key); }} style={({ pressed }) => [styles.navItem, pressed && styles.pressed]}><View style={[styles.navIconWrap, active && styles.navIconWrapActive]}><Text style={[styles.navIcon, active && styles.navIconActive]}>{item.icon}</Text></View><Text style={[styles.navLabel, active && styles.navLabelActive]}>{item.label}</Text>{active ? <View style={styles.navIndicator} /> : null}</Pressable>; })}</View></View></View></SafeAreaView>;
 }
 
 const styles = StyleSheet.create({
@@ -382,6 +277,8 @@ const styles = StyleSheet.create({
   focusCard:{marginTop:17,borderRadius:20,borderWidth:1,borderColor:"#2B261D",backgroundColor:"#0B0A08",padding:17},sectionTopRow:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:12},sectionEyebrow:{color:GOLD,fontSize:7.5,letterSpacing:1.6,fontWeight:"900"},sectionTitle:{color:"#F0F0F0",fontSize:18,fontWeight:"700",marginTop:5},smallPill:{borderRadius:14,borderWidth:1,borderColor:"#373021",paddingHorizontal:9,paddingVertical:6},smallPillText:{color:"#A28A5C",fontSize:6.5,letterSpacing:1,fontWeight:"800"},mutedSmall:{color:"#666",fontSize:7,letterSpacing:1},emptyLine:{color:"#777",fontSize:10.5,paddingVertical:24,textAlign:"center"},
   bookingCard:{marginTop:10,borderRadius:15,borderWidth:1,borderColor:"#222",backgroundColor:"#0A0A0A",padding:12},bookingCardCompact:{borderColor:"#4B3A20",backgroundColor:"#100D07"},bookingMain:{flexDirection:"row",alignItems:"center",gap:12},bookingTimeWrap:{width:52},bookingTime:{color:GOLD_LIGHT,fontSize:15,fontWeight:"800"},bookingDuration:{color:"#70654F",fontSize:6.5,marginTop:4},bookingCopy:{flex:1},bookingName:{color:"#EFEFEF",fontSize:12.5,fontWeight:"700"},bookingService:{color:"#A9A9A9",fontSize:9,marginTop:3},bookingMeta:{color:"#666",fontSize:7.5,marginTop:4},statusPill:{borderRadius:12,borderWidth:1,borderColor:"#3A3020",paddingHorizontal:7,paddingVertical:5},statusPending:{borderColor:"#6A4F20",backgroundColor:"#171005"},statusText:{color:"#A78C58",fontSize:5.7,letterSpacing:.6,fontWeight:"800"},bookingActions:{flexDirection:"row",gap:7,marginTop:11,paddingTop:10,borderTopWidth:1,borderTopColor:"#1D1D1D"},bookingAction:{flex:1,minHeight:34,borderRadius:10,borderWidth:1,borderColor:"#333",alignItems:"center",justifyContent:"center"},bookingActionText:{color:"#A8A8A8",fontSize:6.5,letterSpacing:.7,fontWeight:"800"},bookingActionPrimary:{flex:1,minHeight:34,borderRadius:10,backgroundColor:GOLD,alignItems:"center",justifyContent:"center"},bookingActionPrimaryText:{color:"#090909",fontSize:6.5,letterSpacing:.7,fontWeight:"900"},bookingActionDanger:{flex:1,minHeight:34,borderRadius:10,borderWidth:1,borderColor:"#56302A",backgroundColor:"#140B0A",alignItems:"center",justifyContent:"center"},bookingActionDangerText:{color:"#D48F83",fontSize:6.5,letterSpacing:.7,fontWeight:"800"},
   pageTitle:{color:"#F5F5F5",fontSize:29,lineHeight:35,fontWeight:"750",marginTop:7},pageText:{color:MUTED,fontSize:11.5,lineHeight:18,marginTop:9,marginBottom:18,maxWidth:340},
+  insightPeriodRow:{flexDirection:"row",borderRadius:15,borderWidth:1,borderColor:"#262626",backgroundColor:"#090909",padding:4,gap:4,marginBottom:10},insightPeriod:{flex:1,minHeight:42,borderRadius:11,alignItems:"center",justifyContent:"center"},insightPeriodActive:{backgroundColor:"#181207",borderWidth:1,borderColor:"#5A4523"},insightPeriodText:{color:"#666",fontSize:7,letterSpacing:1,fontWeight:"900"},insightPeriodTextActive:{color:GOLD_LIGHT},insightRange:{marginBottom:14,flexDirection:"row",justifyContent:"space-between",alignItems:"center"},insightRangeLabel:{color:"#6E5E42",fontSize:6.5,letterSpacing:1,fontWeight:"900"},insightRangeValue:{color:"#A8A8A8",fontSize:8.5,fontWeight:"700"},
+  chartCard:{marginTop:16,borderRadius:20,borderWidth:1,borderColor:"#2B261D",backgroundColor:"#0B0A08",padding:16},chartArea:{height:160,flexDirection:"row",alignItems:"flex-end",gap:4,marginTop:15},chartColumn:{flex:1,height:145,alignItems:"center",justifyContent:"flex-end"},chartBarTrack:{height:116,width:"78%",borderRadius:6,backgroundColor:"#151515",justifyContent:"flex-end",overflow:"hidden"},chartBar:{width:"100%",borderRadius:6,backgroundColor:GOLD},chartLabel:{color:"#666",fontSize:5.5,marginTop:7,maxWidth:30},insightDetailGrid:{marginTop:12,flexDirection:"row",flexWrap:"wrap",gap:9},insightDetail:{width:"48.6%",minHeight:84,borderRadius:16,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,padding:14,justifyContent:"space-between"},insightDetailLabel:{color:"#7C6948",fontSize:6.5,letterSpacing:1,fontWeight:"900"},insightDetailValue:{color:"#F1F1F1",fontSize:22,fontWeight:"750"},insightHighlight:{marginTop:12,borderRadius:18,borderWidth:1,borderColor:"#30291D",backgroundColor:"#0D0B08",padding:16},insightHighlightValue:{color:"#F1E7D6",fontSize:17,fontWeight:"750",marginTop:7},insightHighlightMeta:{color:"#777",fontSize:8.5,marginTop:6},
   scheduleTabs:{flexDirection:"row",gap:6,borderRadius:15,borderWidth:1,borderColor:"#222",backgroundColor:"#090909",padding:4},scheduleTab:{flex:1,minHeight:40,borderRadius:11,alignItems:"center",justifyContent:"center"},scheduleTabActive:{backgroundColor:"#171107",borderWidth:1,borderColor:"#4C3A1D"},scheduleTabText:{color:"#666",fontSize:6.2,letterSpacing:.8,fontWeight:"800"},scheduleTabTextActive:{color:GOLD_LIGHT},
   scheduleActions:{marginTop:13,borderRadius:18,borderWidth:1,borderColor:BORDER,backgroundColor:PANEL,overflow:"hidden"},actionRow:{minHeight:73,paddingHorizontal:16,flexDirection:"row",alignItems:"center",justifyContent:"space-between",borderBottomWidth:1,borderBottomColor:"#1D1D1D"},actionTitle:{color:"#EDEDED",fontSize:13,fontWeight:"700"},actionMeta:{color:"#777",fontSize:8.5,marginTop:4},rowArrow:{color:GOLD_LIGHT,fontSize:24},
   managerCard:{marginTop:15,borderRadius:20,borderWidth:1,borderColor:"#2B261D",backgroundColor:"#0A0907",padding:16},managerHeader:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:12},managerText:{color:MUTED,fontSize:10,lineHeight:16,marginTop:9,marginBottom:14},managerSave:{borderRadius:13,backgroundColor:GOLD,paddingHorizontal:13,paddingVertical:9},managerSaveText:{color:"#090909",fontSize:7,letterSpacing:1,fontWeight:"900"},

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -39,17 +40,18 @@ async function getClientKey() {
   return created;
 }
 
-function dateLabel(value) {
-  const date = new Date(`${value}T12:00:00`);
+function formatDay(isoDate) {
+  const date = new Date(`${isoDate}T12:00:00`);
   return {
-    day: date.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(),
-    number: date.toLocaleDateString("en-GB", { day: "2-digit" }),
+    weekday: date.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(),
+    day: date.toLocaleDateString("en-GB", { day: "2-digit" }),
     month: date.toLocaleDateString("en-GB", { month: "short" }).toUpperCase(),
+    long: date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
   };
 }
 
-function timeLabel(value) {
-  return new Date(value).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 export default function BookingScreen({ onBack, initialService = "Haircut" }) {
@@ -59,15 +61,13 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
   const [availability, setAvailability] = useState([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
-  const [availabilityBusy, setAvailabilityBusy] = useState(false);
-  const [availabilityError, setAvailabilityError] = useState("");
-  const [scheduleSetupRequired, setScheduleSetupRequired] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [setupRequired, setSetupRequired] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
   const [paymentSummary, setPaymentSummary] = useState(null);
   const [paymentBusy, setPaymentBusy] = useState(false);
-  const [paymentError, setPaymentError] = useState("");
   const [bookingBusy, setBookingBusy] = useState(false);
-  const [bookingError, setBookingError] = useState("");
+  const [error, setError] = useState("");
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
   const service = useMemo(
@@ -76,41 +76,19 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
   );
 
   const selectedDay = availability.find((item) => item.date === selectedDate);
-  const visibleDays = availability.filter((item) => item.slots?.length > 0).slice(0, 12);
+  const slots = selectedDay?.slots || [];
 
   const request = async (path, options = {}) => {
-    if (!API_URL) throw new Error("The QuincyFadez booking service is still being connected.");
+    if (!API_URL) throw new Error("The QuincyFadez booking server is still being connected.");
     const response = await fetch(`${API_URL}${path}`, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers || {}),
-      },
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(typeof data.detail === "string" ? data.detail : "Something went wrong. Please try again.");
     }
     return data;
-  };
-
-  const loadAvailability = async (serviceName = selectedService) => {
-    setAvailabilityBusy(true);
-    setAvailabilityError("");
-    setSelectedDate("");
-    setSelectedSlot("");
-    try {
-      const data = await request(`/api/booking/availability?service=${encodeURIComponent(serviceName)}&days=21`);
-      const days = data.days || [];
-      setAvailability(days);
-      setScheduleSetupRequired(Boolean(data.setup_required));
-      const first = days.find((item) => item.slots?.length > 0);
-      if (first) setSelectedDate(first.date);
-    } catch (error) {
-      setAvailabilityError(error.message || "Availability could not be loaded.");
-    } finally {
-      setAvailabilityBusy(false);
-    }
   };
 
   const verifyPaymentMethod = async (key, silent = false) => {
@@ -121,12 +99,31 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
         body: JSON.stringify({ client_key: key }),
       });
       setPaymentVerified(Boolean(data.verified));
-      setPaymentSummary(data.verified ? data.payment_method || null : null);
-      if (data.verified) setPaymentError("");
+      setPaymentSummary(data.payment_method || null);
+      if (!silent) setError("");
       return Boolean(data.verified);
-    } catch (error) {
-      if (!silent) setPaymentError(error.message);
+    } catch (err) {
+      if (!silent) setError(err.message);
       return false;
+    }
+  };
+
+  const loadAvailability = async () => {
+    if (!API_URL) return;
+    setLoadingSlots(true);
+    setError("");
+    setSelectedSlot("");
+    try {
+      const data = await request(`/api/booking/availability?service=${encodeURIComponent(selectedService)}&days=21`);
+      setAvailability(data.days || []);
+      setSetupRequired(Boolean(data.setup_required));
+      const firstWithSlots = (data.days || []).find((day) => day.slots?.length);
+      setSelectedDate(firstWithSlots?.date || data.days?.[0]?.date || "");
+    } catch (err) {
+      setError(err.message);
+      setAvailability([]);
+    } finally {
+      setLoadingSlots(false);
     }
   };
 
@@ -139,19 +136,14 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
         await verifyPaymentMethod(key, true);
       })
       .catch(() => {
-        if (active) setPaymentError("Secure payment setup could not start on this device.");
+        if (active) setError("Secure booking setup could not start on this device.");
       });
-    loadAvailability(initialService);
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, []);
 
-  const chooseService = (name) => {
-    setSelectedService(name);
-    setConfirmedBooking(null);
-    loadAvailability(name);
-  };
+  useEffect(() => {
+    loadAvailability();
+  }, [selectedService]);
 
   const confirmHandler = async (confirmationToken, intentCreationCallback) => {
     try {
@@ -161,15 +153,15 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
       });
       if (!data.client_secret) throw new Error("Stripe did not return a setup confirmation.");
       intentCreationCallback({ clientSecret: data.client_secret });
-    } catch (error) {
-      intentCreationCallback({ error: { localizedMessage: error.message || "Your payment method could not be set up." } });
+    } catch (err) {
+      intentCreationCallback({ error: { localizedMessage: err.message || "Your payment method could not be set up." } });
     }
   };
 
   const addPaymentMethod = async () => {
-    if (!clientKey) return;
+    if (!clientKey || paymentBusy) return;
     setPaymentBusy(true);
-    setPaymentError("");
+    setError("");
     try {
       const { error: initError } = await initPaymentSheet({
         merchantDisplayName: "QuincyFadez",
@@ -200,9 +192,9 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
         throw new Error(presentError.message || "Payment setup was not completed.");
       }
       const verified = await verifyPaymentMethod(clientKey);
-      if (!verified) throw new Error("Stripe finished, but the payment method is not verified yet.");
-    } catch (error) {
-      setPaymentError(error.message || "Payment setup could not be completed.");
+      if (!verified) throw new Error("Stripe finished, but the card has not been verified yet. Please try again.");
+    } catch (err) {
+      setError(err.message || "Payment setup could not be completed.");
     } finally {
       setPaymentBusy(false);
     }
@@ -211,51 +203,56 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
   const confirmBooking = async () => {
     if (!selectedSlot || !paymentVerified || bookingBusy) return;
     setBookingBusy(true);
-    setBookingError("");
+    setError("");
     try {
-      const booking = await request("/api/booking/appointments", {
+      const data = await request("/api/booking/appointments", {
         method: "POST",
         body: JSON.stringify({ client_key: clientKey, service: selectedService, start_at: selectedSlot }),
       });
-      setConfirmedBooking(booking);
-      await loadAvailability(selectedService);
-    } catch (error) {
-      setBookingError(error.message || "Your booking could not be confirmed.");
-      if ((error.message || "").toLowerCase().includes("available")) {
-        await loadAvailability(selectedService);
+      setConfirmedBooking(data);
+    } catch (err) {
+      setError(err.message);
+      if (err.message.toLowerCase().includes("available") || err.message.toLowerCase().includes("booked")) {
+        await loadAvailability();
       }
     } finally {
       setBookingBusy(false);
     }
   };
 
+  if (confirmedBooking) {
+    const dateLabel = new Date(confirmedBooking.start_at).toLocaleDateString("en-GB", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric",
+    });
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor={BG} />
+        <ScrollView contentContainerStyle={styles.confirmedContent}>
+          <View style={styles.confirmedMark}><Text style={styles.confirmedTick}>✓</Text></View>
+          <Text style={styles.confirmedEyebrow}>BOOKING CONFIRMED</Text>
+          <Text style={styles.confirmedTitle}>You’re Locked In.</Text>
+          <Text style={styles.confirmedSubtitle}>Your QuincyFadez appointment has been reserved successfully.</Text>
+          <View style={styles.ticketCard}>
+            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>SERVICE</Text><Text style={styles.ticketValue}>{confirmedBooking.service}</Text></View>
+            <View style={styles.ticketDivider} />
+            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>DATE</Text><Text style={styles.ticketValue}>{dateLabel}</Text></View>
+            <View style={styles.ticketDivider} />
+            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>TIME</Text><Text style={styles.ticketValue}>{formatTime(confirmedBooking.start_at)}</Text></View>
+            <View style={styles.ticketDivider} />
+            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>TOTAL</Text><Text style={styles.ticketPrice}>£{confirmedBooking.price}</Text></View>
+          </View>
+          <View style={styles.confirmationNote}><Text style={styles.confirmationNoteTitle}>QUINCYFADEZ BOOKING</Text><Text style={styles.confirmationNoteText}>This booking lives inside the QuincyFadez system. You can manage upcoming appointments from your account as that section is completed.</Text></View>
+          <Pressable onPress={onBack} style={styles.doneButton}><Text style={styles.doneButtonText}>DONE</Text></Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   const paymentLabel = paymentSummary?.last4
     ? `${(paymentSummary.brand || "Card").toUpperCase()}  •••• ${paymentSummary.last4}`
     : "PAYMENT METHOD VERIFIED";
 
-  if (confirmedBooking) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={BG} />
-        <View style={styles.confirmationWrap}>
-          <View style={styles.confirmationHalo}><Text style={styles.confirmationTick}>✓</Text></View>
-          <Text style={styles.confirmationEyebrow}>BOOKING CONFIRMED</Text>
-          <Text style={styles.confirmationTitle}>You're Locked In.</Text>
-          <Text style={styles.confirmationSub}>Your QuincyFadez appointment has been reserved successfully.</Text>
-          <View style={styles.confirmationCard}>
-            <View style={styles.confirmationRow}><Text style={styles.confirmationLabel}>SERVICE</Text><Text style={styles.confirmationValue}>{confirmedBooking.service}</Text></View>
-            <View style={styles.confirmationDivider} />
-            <View style={styles.confirmationRow}><Text style={styles.confirmationLabel}>DATE</Text><Text style={styles.confirmationValue}>{new Date(confirmedBooking.start_at).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "long" })}</Text></View>
-            <View style={styles.confirmationDivider} />
-            <View style={styles.confirmationRow}><Text style={styles.confirmationLabel}>TIME</Text><Text style={styles.confirmationValue}>{timeLabel(confirmedBooking.start_at)}</Text></View>
-            <View style={styles.confirmationDivider} />
-            <View style={styles.confirmationRow}><Text style={styles.confirmationLabel}>TOTAL</Text><Text style={styles.confirmationPrice}>£{confirmedBooking.price}</Text></View>
-          </View>
-          <Pressable onPress={onBack} style={({ pressed }) => [styles.doneButton, pressed && styles.pressed]}><Text style={styles.doneButtonText}>DONE</Text></Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const canConfirm = Boolean(selectedSlot && paymentVerified && !bookingBusy);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -267,24 +264,25 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
           <View style={styles.headerSpacer} />
         </View>
 
-        <View style={styles.intro}>
-          <Text style={styles.eyebrow}>QUINCYFADEZ BOOKING</Text>
-          <Text style={styles.title}>Your Cut. Your Time.</Text>
-          <Text style={styles.subtitle}>Book directly with QuincyFadez in a few clean steps — no external booking app.</Text>
-          <View style={styles.progressTrack}>
-            {["SERVICE", "DATE", "TIME", "CARD", "CONFIRM"].map((label, index) => {
-              const complete = index === 0 || (index === 1 && selectedDate) || (index === 2 && selectedSlot) || (index === 3 && paymentVerified);
-              return <View key={label} style={styles.progressItem}><View style={[styles.progressDot, complete && styles.progressDotActive]} /><Text style={[styles.progressLabel, complete && styles.progressLabelActive]}>{label}</Text></View>;
-            })}
-          </View>
+        <View style={styles.progressRow}>
+          {["SERVICE", "DATE", "TIME", "CONFIRM"].map((label, index) => {
+            const active = index === 0 || (index === 1 && selectedService) || (index === 2 && selectedDate) || (index === 3 && selectedSlot);
+            return <View key={label} style={styles.progressItem}><View style={[styles.progressDot, active && styles.progressDotActive]} /><Text style={[styles.progressLabel, active && styles.progressLabelActive]}>{label}</Text></View>;
+          })}
         </View>
 
-        <View style={styles.sectionHead}><Text style={styles.stepNo}>01</Text><View><Text style={styles.sectionTitle}>Choose Your Service</Text><Text style={styles.sectionMeta}>Select what you're coming in for.</Text></View></View>
+        <View style={styles.intro}>
+          <Text style={styles.eyebrow}>QUINCYFADEZ BOOKING</Text>
+          <Text style={styles.title}>Book Your Next Cut.</Text>
+          <Text style={styles.subtitle}>Choose your service and a live QuincyFadez slot without leaving the app.</Text>
+        </View>
+
+        <Text style={styles.sectionTitle}>1. Choose Your Service</Text>
         <View style={styles.serviceList}>
           {SERVICES.map((item) => {
             const active = item.name === selectedService;
             return (
-              <Pressable key={item.name} onPress={() => chooseService(item.name)} style={({ pressed }) => [styles.serviceOption, active && styles.serviceOptionActive, pressed && styles.pressed]}>
+              <Pressable key={item.name} onPress={() => setSelectedService(item.name)} style={({ pressed }) => [styles.serviceOption, active && styles.serviceOptionActive, pressed && styles.pressed]}>
                 <View style={[styles.radioOuter, active && styles.radioOuterActive]}>{active ? <View style={styles.radioInner} /> : null}</View>
                 <View style={styles.serviceCopy}><Text style={[styles.serviceName, active && styles.serviceNameActive]}>{item.name}</Text><Text style={styles.serviceDuration}>{item.duration}</Text></View>
                 <Text style={styles.servicePrice}>£{item.price}</Text>
@@ -293,49 +291,70 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
           })}
         </View>
 
-        <View style={styles.sectionHead}><Text style={styles.stepNo}>02</Text><View><Text style={styles.sectionTitle}>Pick A Date</Text><Text style={styles.sectionMeta}>Only days with live availability appear.</Text></View></View>
-        {availabilityBusy ? <View style={styles.stateCard}><Text style={styles.stateTitle}>CHECKING AVAILABILITY…</Text><Text style={styles.stateText}>Finding the cleanest available slots for you.</Text></View> : null}
-        {!availabilityBusy && scheduleSetupRequired ? <View style={styles.stateCard}><Text style={styles.stateTitle}>SCHEDULE SETUP IN PROGRESS</Text><Text style={styles.stateText}>The native booking engine is ready. Working hours still need to be configured before customers can reserve live slots.</Text></View> : null}
-        {!availabilityBusy && availabilityError ? <View style={styles.errorCard}><Text style={styles.errorText}>{availabilityError}</Text><Pressable onPress={() => loadAvailability()}><Text style={styles.retryText}>TRY AGAIN</Text></Pressable></View> : null}
-        {!availabilityBusy && visibleDays.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail}>
-            {visibleDays.map((item) => {
-              const label = dateLabel(item.date);
-              const active = item.date === selectedDate;
-              return <Pressable key={item.date} onPress={() => { setSelectedDate(item.date); setSelectedSlot(""); }} style={({ pressed }) => [styles.dateCard, active && styles.dateCardActive, pressed && styles.pressed]}><Text style={[styles.dateDay, active && styles.dateTextActive]}>{label.day}</Text><Text style={[styles.dateNumber, active && styles.dateTextActive]}>{label.number}</Text><Text style={[styles.dateMonth, active && styles.dateTextActive]}>{label.month}</Text><Text style={[styles.dateSlots, active && styles.dateSlotsActive]}>{item.slots.length} SLOTS</Text></Pressable>;
+        <Text style={styles.sectionTitle}>2. Pick A Date</Text>
+        {loadingSlots ? (
+          <View style={styles.loadingCard}><ActivityIndicator color={GOLD_LIGHT} /><Text style={styles.loadingText}>Checking live availability…</Text></View>
+        ) : setupRequired ? (
+          <View style={styles.setupCard}><Text style={styles.setupTitle}>AVAILABILITY SETUP REQUIRED</Text><Text style={styles.setupText}>Your working hours haven’t been configured yet, so the app is correctly keeping every slot closed instead of inventing availability.</Text></View>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>
+            {availability.map((day) => {
+              const label = formatDay(day.date);
+              const active = selectedDate === day.date;
+              const disabled = !day.slots?.length;
+              return (
+                <Pressable key={day.date} disabled={disabled} onPress={() => { setSelectedDate(day.date); setSelectedSlot(""); }} style={[styles.dateCard, active && styles.dateCardActive, disabled && styles.dateCardDisabled]}>
+                  <Text style={[styles.dateWeekday, active && styles.dateTextActive]}>{label.weekday}</Text>
+                  <Text style={[styles.dateNumber, active && styles.dateTextActive]}>{label.day}</Text>
+                  <Text style={[styles.dateMonth, active && styles.dateTextActive]}>{label.month}</Text>
+                  {!disabled ? <View style={[styles.availabilityDot, active && styles.availabilityDotActive]} /> : null}
+                </Pressable>
+              );
             })}
           </ScrollView>
-        ) : null}
+        )}
 
-        <View style={styles.sectionHead}><Text style={styles.stepNo}>03</Text><View><Text style={styles.sectionTitle}>Choose Your Time</Text><Text style={styles.sectionMeta}>Times update live to help prevent double-booking.</Text></View></View>
-        {selectedDay?.slots?.length ? (
-          <View style={styles.timeGrid}>{selectedDay.slots.map((slot) => { const active = selectedSlot === slot; return <Pressable key={slot} onPress={() => setSelectedSlot(slot)} style={({ pressed }) => [styles.timeChip, active && styles.timeChipActive, pressed && styles.pressed]}><Text style={[styles.timeText, active && styles.timeTextActive]}>{timeLabel(slot)}</Text></Pressable>; })}</View>
-        ) : <View style={styles.emptyTime}><Text style={styles.emptyTimeText}>{scheduleSetupRequired ? "Live times will appear here once your working hours are configured." : "Choose an available date to see times."}</Text></View>}
+        <Text style={styles.sectionTitle}>3. Choose A Time</Text>
+        <View style={styles.timePanel}>
+          {selectedDate ? <Text style={styles.selectedDateLabel}>{formatDay(selectedDate).long.toUpperCase()}</Text> : null}
+          {slots.length ? (
+            <View style={styles.timeGrid}>
+              {slots.map((slot) => {
+                const active = selectedSlot === slot;
+                return <Pressable key={slot} onPress={() => setSelectedSlot(slot)} style={[styles.timeChip, active && styles.timeChipActive]}><Text style={[styles.timeText, active && styles.timeTextActive]}>{formatTime(slot)}</Text></Pressable>;
+              })}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>{selectedDate ? "No slots are available on this date." : "Choose an available date to see times."}</Text>
+          )}
+        </View>
 
-        <View style={styles.sectionHead}><Text style={styles.stepNo}>04</Text><View><Text style={styles.sectionTitle}>Secure Your Booking</Text><Text style={styles.sectionMeta}>Stripe protects your card details.</Text></View></View>
+        <Text style={styles.sectionTitle}>4. Secure Your Booking</Text>
         <View style={[styles.paymentCard, paymentVerified && styles.paymentCardVerified]}>
-          <View style={styles.paymentTop}><View><Text style={styles.paymentEyebrow}>PAYMENT METHOD</Text><Text style={styles.paymentTitle}>{paymentVerified ? paymentLabel : "Card Required"}</Text></View><View style={[styles.paymentBadge, paymentVerified && styles.paymentBadgeReady]}><Text style={[styles.paymentBadgeText, paymentVerified && styles.paymentBadgeTextReady]}>{paymentVerified ? "READY" : "REQUIRED"}</Text></View></View>
-          <Text style={styles.paymentText}>{paymentVerified ? "Your saved method is ready for booking protection." : "Add a payment method securely with Stripe. QuincyFadez never stores your full card number or CVC."}</Text>
-          {!paymentVerified ? <Pressable onPress={addPaymentMethod} disabled={paymentBusy || !clientKey} style={({ pressed }) => [styles.paymentButton, pressed && styles.pressed, paymentBusy && styles.disabled]}><Text style={styles.paymentButtonText}>{paymentBusy ? "OPENING STRIPE…" : "ADD PAYMENT METHOD"}</Text><Text style={styles.paymentArrow}>›</Text></Pressable> : null}
-          {paymentError ? <Text style={styles.inlineError}>{paymentError}</Text> : null}
+          <View style={styles.paymentHeader}>
+            <View><Text style={styles.paymentEyebrow}>PAYMENT METHOD</Text><Text style={styles.paymentTitle}>{paymentVerified ? paymentLabel : "Card Verification Required"}</Text></View>
+            <View style={[styles.paymentBadge, paymentVerified && styles.paymentBadgeVerified]}><Text style={[styles.paymentBadgeText, paymentVerified && styles.paymentBadgeTextVerified]}>{paymentVerified ? "READY" : "REQUIRED"}</Text></View>
+          </View>
+          <Text style={styles.paymentText}>{paymentVerified ? "Your payment method is securely saved with Stripe and ready for booking protection." : "Verify a payment method securely with Stripe. QuincyFadez never stores your full card number or CVC."}</Text>
+          {!paymentVerified ? <Pressable onPress={addPaymentMethod} disabled={paymentBusy || !clientKey} style={[styles.paymentButton, paymentBusy && styles.disabled]}><Text style={styles.paymentButtonText}>{paymentBusy ? "OPENING STRIPE…" : "ADD PAYMENT METHOD"}</Text><Text style={styles.buttonArrow}>›</Text></Pressable> : null}
         </View>
 
-        <View style={styles.sectionHead}><Text style={styles.stepNo}>05</Text><View><Text style={styles.sectionTitle}>Confirm Appointment</Text><Text style={styles.sectionMeta}>One final check before it's yours.</Text></View></View>
         <View style={styles.summaryCard}>
+          <Text style={styles.summaryEyebrow}>YOUR APPOINTMENT</Text>
           <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Service</Text><Text style={styles.summaryValue}>{service.name}</Text></View>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Date</Text><Text style={styles.summaryValue}>{selectedDate ? new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) : "Not Selected"}</Text></View>
-          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Time</Text><Text style={styles.summaryValue}>{selectedSlot ? timeLabel(selectedSlot) : "Not Selected"}</Text></View>
-          <View style={styles.summaryDivider} />
-          <View style={styles.summaryRow}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalPrice}>£{service.price}</Text></View>
+          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Date</Text><Text style={styles.summaryValue}>{selectedDate ? formatDay(selectedDate).long : "Not Selected"}</Text></View>
+          <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Time</Text><Text style={styles.summaryValue}>{selectedSlot ? formatTime(selectedSlot) : "Not Selected"}</Text></View>
+          <View style={[styles.summaryRow, styles.summaryTotal]}><Text style={styles.totalLabel}>Total</Text><Text style={styles.totalPrice}>£{service.price}</Text></View>
         </View>
 
-        <Pressable disabled={!selectedSlot || !paymentVerified || bookingBusy} onPress={confirmBooking} style={({ pressed }) => [styles.confirmButton, (!selectedSlot || !paymentVerified) && styles.confirmDisabled, pressed && selectedSlot && paymentVerified && styles.confirmPressed]}>
-          <View><Text style={[styles.confirmButtonText, (!selectedSlot || !paymentVerified) && styles.confirmButtonTextDisabled]}>{bookingBusy ? "CONFIRMING…" : "CONFIRM BOOKING"}</Text><Text style={[styles.confirmButtonSub, (!selectedSlot || !paymentVerified) && styles.confirmButtonSubDisabled]}>{selectedSlot && paymentVerified ? "Reserve this QuincyFadez appointment" : "Choose a time and verify your card first"}</Text></View>
-          <View style={styles.confirmArrowWrap}><Text style={styles.confirmArrow}>›</Text></View>
-        </Pressable>
-        {bookingError ? <Text style={styles.bookingError}>{bookingError}</Text> : null}
+        {error ? <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text></View> : null}
 
-        <View style={styles.trustRow}><Text style={styles.trustText}>LIVE AVAILABILITY</Text><Text style={styles.trustDot}>•</Text><Text style={styles.trustText}>STRIPE SECURED</Text><Text style={styles.trustDot}>•</Text><Text style={styles.trustText}>DIRECT BOOKING</Text></View>
+        <Pressable disabled={!canConfirm} onPress={confirmBooking} style={({ pressed }) => [styles.confirmButton, !canConfirm && styles.confirmDisabled, pressed && canConfirm && styles.confirmPressed]}>
+          <View><Text style={[styles.confirmText, !canConfirm && styles.confirmTextDisabled]}>{bookingBusy ? "CONFIRMING…" : "CONFIRM BOOKING"}</Text><Text style={[styles.confirmSubtext, !canConfirm && styles.confirmSubtextDisabled]}>{selectedSlot ? "Reserve this QuincyFadez appointment" : "Choose a date and time first"}</Text></View>
+          {bookingBusy ? <ActivityIndicator color="#090909" /> : <Text style={[styles.confirmArrow, !canConfirm && styles.confirmTextDisabled]}>›</Text>}
+        </Pressable>
+
+        <View style={styles.trustRow}><Text style={styles.trustText}>✓ LIVE AVAILABILITY</Text><Text style={styles.trustText}>✓ STRIPE SECURED</Text><Text style={styles.trustText}>✓ IN-APP BOOKING</Text></View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -344,107 +363,107 @@ export default function BookingScreen({ onBack, initialService = "Haircut" }) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BG },
   screen: { flex: 1, backgroundColor: BG },
-  content: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 44 },
+  content: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 34 },
   header: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#151515" },
   backButton: { width: 44, height: 44, justifyContent: "center" },
   backIcon: { color: "#F5F5F5", fontSize: 34, lineHeight: 34 },
   headerTitle: { color: "#F4F4F4", fontSize: 13, letterSpacing: 1.8, fontWeight: "700" },
   headerSpacer: { width: 44 },
-  intro: { paddingTop: 26, paddingBottom: 18 },
-  eyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2.1, fontWeight: "800" },
-  title: { color: "#F6F6F6", fontSize: 31, lineHeight: 36, fontWeight: "750", marginTop: 9 },
-  subtitle: { color: MUTED, fontSize: 12, lineHeight: 18, marginTop: 8, maxWidth: 350 },
-  progressTrack: { flexDirection: "row", justifyContent: "space-between", marginTop: 20, borderRadius: 18, borderWidth: 1, borderColor: "#202020", backgroundColor: "#090909", paddingHorizontal: 12, paddingVertical: 11 },
+  progressRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 15, paddingHorizontal: 3 },
   progressItem: { alignItems: "center", flex: 1 },
-  progressDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "#333" },
-  progressDotActive: { backgroundColor: GOLD_LIGHT, shadowColor: GOLD_LIGHT, shadowOpacity: 0.8, shadowRadius: 6 },
-  progressLabel: { color: "#555", fontSize: 5.8, letterSpacing: 0.8, fontWeight: "800", marginTop: 5 },
-  progressLabelActive: { color: "#CDB57B" },
-  sectionHead: { flexDirection: "row", alignItems: "center", gap: 11, marginTop: 24, marginBottom: 11 },
-  stepNo: { color: GOLD, fontSize: 9, letterSpacing: 1.4, fontWeight: "900", width: 20 },
-  sectionTitle: { color: "#F1F1F1", fontSize: 17, fontWeight: "700" },
-  sectionMeta: { color: MUTED, fontSize: 9, marginTop: 3 },
+  progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#303030", marginBottom: 6 },
+  progressDotActive: { backgroundColor: GOLD_LIGHT },
+  progressLabel: { color: "#555", fontSize: 6.5, letterSpacing: 1 },
+  progressLabelActive: { color: "#A88D59" },
+  intro: { paddingTop: 24, paddingBottom: 20 },
+  eyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2, fontWeight: "800" },
+  title: { color: "#F5F5F5", fontSize: 31, lineHeight: 36, fontWeight: "700", marginTop: 8 },
+  subtitle: { color: MUTED, fontSize: 12.5, lineHeight: 19, marginTop: 9, maxWidth: 350 },
+  sectionTitle: { color: "#EFEFEF", fontSize: 17, fontWeight: "700", marginTop: 20, marginBottom: 11 },
   serviceList: { gap: 9 },
-  serviceOption: { minHeight: 74, borderRadius: 17, borderWidth: 1, borderColor: BORDER, backgroundColor: PANEL, paddingHorizontal: 15, flexDirection: "row", alignItems: "center" },
-  serviceOptionActive: { borderColor: "#6D542A", backgroundColor: "#120F09", shadowColor: GOLD, shadowOpacity: 0.08, shadowRadius: 10 },
+  serviceOption: { minHeight: 72, borderRadius: 17, borderWidth: 1, borderColor: BORDER, backgroundColor: PANEL, paddingHorizontal: 15, flexDirection: "row", alignItems: "center" },
+  serviceOptionActive: { borderColor: "#765B2E", backgroundColor: "#120F09" },
   pressed: { opacity: 0.76 },
-  disabled: { opacity: 0.55 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: "#444", alignItems: "center", justifyContent: "center" },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: "#4A4A4A", alignItems: "center", justifyContent: "center" },
   radioOuterActive: { borderColor: GOLD_LIGHT },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD_LIGHT },
-  serviceCopy: { flex: 1, marginLeft: 13 },
-  serviceName: { color: "#E7E7E7", fontSize: 14.5, fontWeight: "650" },
-  serviceNameActive: { color: "#FFF4DD" },
+  serviceCopy: { flex: 1, marginLeft: 12 },
+  serviceName: { color: "#E8E8E8", fontSize: 14.5, fontWeight: "650" },
+  serviceNameActive: { color: "#FFF4DC" },
   serviceDuration: { color: MUTED, fontSize: 8.5, marginTop: 4 },
-  servicePrice: { color: GOLD_LIGHT, fontSize: 18, fontWeight: "800" },
-  stateCard: { borderRadius: 17, borderWidth: 1, borderColor: "#322A1C", backgroundColor: "#0B0906", padding: 16 },
-  stateTitle: { color: GOLD_LIGHT, fontSize: 8, letterSpacing: 1.3, fontWeight: "800" },
-  stateText: { color: "#A39C8D", fontSize: 10, lineHeight: 16, marginTop: 7 },
-  errorCard: { borderRadius: 16, borderWidth: 1, borderColor: "#482E2A", backgroundColor: "#100908", padding: 15 },
-  errorText: { color: "#E2A49A", fontSize: 10, lineHeight: 16 },
-  retryText: { color: GOLD_LIGHT, fontSize: 8, letterSpacing: 1.2, fontWeight: "800", marginTop: 9 },
-  dateRail: { gap: 9, paddingRight: 12 },
-  dateCard: { width: 76, minHeight: 106, borderRadius: 18, borderWidth: 1, borderColor: "#242424", backgroundColor: "#0B0B0B", alignItems: "center", justifyContent: "center" },
-  dateCardActive: { borderColor: "#7A5C2E", backgroundColor: "#C99B4A" },
-  dateDay: { color: "#7F7F7F", fontSize: 7, letterSpacing: 1, fontWeight: "800" },
-  dateNumber: { color: "#F2F2F2", fontSize: 23, fontWeight: "800", marginTop: 4 },
-  dateMonth: { color: "#9A9A9A", fontSize: 7, letterSpacing: 1, fontWeight: "700", marginTop: 2 },
-  dateSlots: { color: "#6E5A35", fontSize: 5.8, letterSpacing: 0.8, fontWeight: "800", marginTop: 8 },
-  dateTextActive: { color: "#090909" },
-  dateSlotsActive: { color: "#3E2D12" },
+  servicePrice: { color: GOLD_LIGHT, fontSize: 17, fontWeight: "800" },
+  loadingCard: { minHeight: 100, borderRadius: 18, backgroundColor: PANEL, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 9 },
+  loadingText: { color: MUTED, fontSize: 10 },
+  setupCard: { borderRadius: 18, borderWidth: 1, borderColor: "#3C2C1A", backgroundColor: "#0B0906", padding: 16 },
+  setupTitle: { color: GOLD_LIGHT, fontSize: 8.5, letterSpacing: 1.5, fontWeight: "800" },
+  setupText: { color: "#AAA39A", fontSize: 10.5, lineHeight: 17, marginTop: 8 },
+  dateStrip: { gap: 9, paddingRight: 8 },
+  dateCard: { width: 68, height: 100, borderRadius: 18, borderWidth: 1, borderColor: BORDER, backgroundColor: PANEL, alignItems: "center", justifyContent: "center" },
+  dateCardActive: { backgroundColor: GOLD, borderColor: GOLD_LIGHT },
+  dateCardDisabled: { opacity: 0.28 },
+  dateWeekday: { color: MUTED, fontSize: 7.5, letterSpacing: 1.2, fontWeight: "700" },
+  dateNumber: { color: "#F4F4F4", fontSize: 22, fontWeight: "750", marginTop: 4 },
+  dateMonth: { color: "#777", fontSize: 7.5, letterSpacing: 1, marginTop: 2 },
+  dateTextActive: { color: "#0A0A0A" },
+  availabilityDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD_LIGHT, marginTop: 7 },
+  availabilityDotActive: { backgroundColor: "#111" },
+  timePanel: { borderRadius: 19, borderWidth: 1, borderColor: BORDER, backgroundColor: "#090909", padding: 14 },
+  selectedDateLabel: { color: "#9B845A", fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800", marginBottom: 11 },
   timeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  timeChip: { width: "23.2%", minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: "#262626", backgroundColor: "#0B0B0B", alignItems: "center", justifyContent: "center" },
-  timeChipActive: { borderColor: GOLD, backgroundColor: "#171108" },
-  timeText: { color: "#D7D7D7", fontSize: 12, fontWeight: "700" },
-  timeTextActive: { color: GOLD_LIGHT },
-  emptyTime: { minHeight: 70, borderRadius: 16, borderWidth: 1, borderColor: "#202020", backgroundColor: "#090909", padding: 16, justifyContent: "center" },
-  emptyTimeText: { color: "#777", fontSize: 10, lineHeight: 16 },
-  paymentCard: { borderRadius: 19, borderWidth: 1, borderColor: "#2B2924", backgroundColor: "#0B0A08", padding: 17 },
-  paymentCardVerified: { borderColor: "#57441F" },
-  paymentTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
-  paymentEyebrow: { color: "#9D7B40", fontSize: 7, letterSpacing: 1.4, fontWeight: "800" },
-  paymentTitle: { color: "#F0F0F0", fontSize: 14, fontWeight: "700", marginTop: 6 },
-  paymentBadge: { borderRadius: 13, borderWidth: 1, borderColor: "#3B3B3B", paddingHorizontal: 8, paddingVertical: 5 },
-  paymentBadgeReady: { borderColor: "#6A5127", backgroundColor: "#171108" },
-  paymentBadgeText: { color: "#777", fontSize: 6.5, letterSpacing: 0.9, fontWeight: "800" },
-  paymentBadgeTextReady: { color: GOLD_LIGHT },
-  paymentText: { color: "#96928A", fontSize: 9.5, lineHeight: 15, marginTop: 13 },
-  paymentButton: { minHeight: 51, borderRadius: 14, backgroundColor: GOLD, marginTop: 14, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  paymentButtonText: { color: "#090909", fontSize: 9.5, letterSpacing: 1, fontWeight: "900" },
-  paymentArrow: { color: "#090909", fontSize: 25 },
-  inlineError: { color: "#E2A49A", fontSize: 9, lineHeight: 14, marginTop: 9 },
-  summaryCard: { borderRadius: 19, borderWidth: 1, borderColor: "#242424", backgroundColor: "#0A0A0A", padding: 17 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 7 },
-  summaryLabel: { color: MUTED, fontSize: 10 },
-  summaryValue: { color: "#E9E9E9", fontSize: 10.5, fontWeight: "650" },
-  summaryDivider: { height: 1, backgroundColor: "#202020", marginVertical: 6 },
-  totalLabel: { color: "#F2F2F2", fontSize: 13, fontWeight: "700" },
-  totalPrice: { color: GOLD_LIGHT, fontSize: 21, fontWeight: "850" },
-  confirmButton: { minHeight: 67, borderRadius: 18, backgroundColor: GOLD, marginTop: 13, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  confirmDisabled: { backgroundColor: "#171717", borderWidth: 1, borderColor: "#292929" },
-  confirmPressed: { opacity: 0.86, transform: [{ scale: 0.995 }] },
-  confirmButtonText: { color: "#090909", fontSize: 11.5, letterSpacing: 1, fontWeight: "900" },
-  confirmButtonTextDisabled: { color: "#666" },
-  confirmButtonSub: { color: "#493514", fontSize: 8.5, marginTop: 4 },
-  confirmButtonSubDisabled: { color: "#555" },
-  confirmArrowWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(0,0,0,0.10)", alignItems: "center", justifyContent: "center" },
-  confirmArrow: { color: "#090909", fontSize: 28, lineHeight: 28 },
-  bookingError: { color: "#E2A49A", fontSize: 9.5, lineHeight: 15, marginTop: 10 },
-  trustRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 7, marginTop: 20 },
-  trustText: { color: "#6F6045", fontSize: 6, letterSpacing: 0.9, fontWeight: "800" },
-  trustDot: { color: "#3D3426", fontSize: 8 },
-  confirmationWrap: { flex: 1, paddingHorizontal: 22, alignItems: "center", justifyContent: "center", backgroundColor: BG },
-  confirmationHalo: { width: 74, height: 74, borderRadius: 37, borderWidth: 1, borderColor: "#765A2C", backgroundColor: "#171108", alignItems: "center", justifyContent: "center", shadowColor: GOLD, shadowOpacity: 0.22, shadowRadius: 22 },
-  confirmationTick: { color: GOLD_LIGHT, fontSize: 31, fontWeight: "800" },
-  confirmationEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2, fontWeight: "900", marginTop: 22 },
-  confirmationTitle: { color: "#F7F7F7", fontSize: 31, fontWeight: "800", marginTop: 8 },
-  confirmationSub: { color: MUTED, fontSize: 11.5, lineHeight: 18, textAlign: "center", maxWidth: 300, marginTop: 8 },
-  confirmationCard: { width: "100%", borderRadius: 21, borderWidth: 1, borderColor: "#2D2922", backgroundColor: "#0B0A08", padding: 18, marginTop: 24 },
-  confirmationRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
-  confirmationLabel: { color: "#777", fontSize: 7, letterSpacing: 1.2, fontWeight: "800" },
-  confirmationValue: { color: "#ECECEC", fontSize: 11, fontWeight: "700" },
-  confirmationPrice: { color: GOLD_LIGHT, fontSize: 18, fontWeight: "850" },
-  confirmationDivider: { height: 1, backgroundColor: "#1E1C18" },
-  doneButton: { width: "100%", minHeight: 56, borderRadius: 16, backgroundColor: GOLD, alignItems: "center", justifyContent: "center", marginTop: 14 },
-  doneButtonText: { color: "#090909", fontSize: 10.5, letterSpacing: 1.3, fontWeight: "900" },
+  timeChip: { width: "23%", minHeight: 44, borderRadius: 13, borderWidth: 1, borderColor: "#282828", backgroundColor: "#101010", alignItems: "center", justifyContent: "center" },
+  timeChipActive: { backgroundColor: GOLD, borderColor: GOLD_LIGHT },
+  timeText: { color: "#D7D7D7", fontSize: 11.5, fontWeight: "700" },
+  timeTextActive: { color: "#080808" },
+  emptyText: { color: MUTED, fontSize: 10.5, paddingVertical: 18, textAlign: "center" },
+  paymentCard: { borderRadius: 19, borderWidth: 1, borderColor: "#2A251D", backgroundColor: "#0A0907", padding: 16 },
+  paymentCardVerified: { borderColor: "#4E3C20" },
+  paymentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
+  paymentEyebrow: { color: "#A8874D", fontSize: 7.5, letterSpacing: 1.5, fontWeight: "800" },
+  paymentTitle: { color: "#F0F0F0", fontSize: 14.5, fontWeight: "700", marginTop: 6 },
+  paymentBadge: { borderRadius: 12, borderWidth: 1, borderColor: "#363636", paddingHorizontal: 8, paddingVertical: 5 },
+  paymentBadgeVerified: { borderColor: "#66502A", backgroundColor: "#151006" },
+  paymentBadgeText: { color: "#777", fontSize: 6.5, letterSpacing: 1, fontWeight: "800" },
+  paymentBadgeTextVerified: { color: GOLD_LIGHT },
+  paymentText: { color: "#999", fontSize: 10, lineHeight: 16, marginTop: 13 },
+  paymentButton: { minHeight: 52, borderRadius: 14, backgroundColor: GOLD, marginTop: 14, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  paymentButtonText: { color: "#080808", fontSize: 10, letterSpacing: 1, fontWeight: "900" },
+  buttonArrow: { color: "#080808", fontSize: 24 },
+  disabled: { opacity: 0.55 },
+  summaryCard: { marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: "#29251D", backgroundColor: "#090806", padding: 17 },
+  summaryEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 1.7, fontWeight: "800", marginBottom: 5 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 9, gap: 14 },
+  summaryLabel: { color: MUTED, fontSize: 10.5 },
+  summaryValue: { color: "#E8E8E8", fontSize: 10.5, fontWeight: "650", textAlign: "right", flex: 1 },
+  summaryTotal: { borderTopWidth: 1, borderTopColor: "#1E1B16", marginTop: 4, paddingTop: 13 },
+  totalLabel: { color: "#F2F2F2", fontSize: 12.5, fontWeight: "700" },
+  totalPrice: { color: GOLD_LIGHT, fontSize: 19, fontWeight: "850" },
+  errorCard: { marginTop: 12, borderRadius: 13, borderWidth: 1, borderColor: "#4A2723", backgroundColor: "#130B0A", padding: 12 },
+  errorText: { color: "#E4A29A", fontSize: 9.5, lineHeight: 15 },
+  confirmButton: { minHeight: 66, borderRadius: 17, backgroundColor: GOLD, marginTop: 13, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  confirmDisabled: { backgroundColor: "#171717", borderWidth: 1, borderColor: "#282828" },
+  confirmPressed: { opacity: 0.87, transform: [{ scale: 0.995 }] },
+  confirmText: { color: "#090909", fontSize: 11.5, letterSpacing: 1, fontWeight: "900" },
+  confirmTextDisabled: { color: "#616161" },
+  confirmSubtext: { color: "#493514", fontSize: 8.5, marginTop: 4 },
+  confirmSubtextDisabled: { color: "#555" },
+  confirmArrow: { color: "#090909", fontSize: 29 },
+  trustRow: { marginTop: 13, minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: "#1D1D1D", backgroundColor: "#090909", flexDirection: "row", alignItems: "center", justifyContent: "space-around", paddingHorizontal: 5 },
+  trustText: { color: "#76684D", fontSize: 6.3, letterSpacing: 0.6, fontWeight: "800" },
+  confirmedContent: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 60, paddingBottom: 36, backgroundColor: BG, alignItems: "center" },
+  confirmedMark: { width: 74, height: 74, borderRadius: 37, borderWidth: 1, borderColor: "#71562B", backgroundColor: "#171107", alignItems: "center", justifyContent: "center" },
+  confirmedTick: { color: GOLD_LIGHT, fontSize: 32, fontWeight: "800" },
+  confirmedEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2.2, fontWeight: "900", marginTop: 24 },
+  confirmedTitle: { color: "#F5F5F5", fontSize: 31, fontWeight: "750", marginTop: 8 },
+  confirmedSubtitle: { color: MUTED, fontSize: 11.5, lineHeight: 18, textAlign: "center", marginTop: 9, maxWidth: 310 },
+  ticketCard: { width: "100%", marginTop: 28, borderRadius: 21, borderWidth: 1, borderColor: "#3A2E1E", backgroundColor: "#0B0906", padding: 18 },
+  ticketRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
+  ticketLabel: { color: "#766A58", fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800" },
+  ticketValue: { color: "#F0F0F0", fontSize: 11, fontWeight: "650", textAlign: "right", flex: 1 },
+  ticketPrice: { color: GOLD_LIGHT, fontSize: 18, fontWeight: "850" },
+  ticketDivider: { height: 1, backgroundColor: "#211D17", marginVertical: 13 },
+  confirmationNote: { width: "100%", marginTop: 14, borderRadius: 15, borderWidth: 1, borderColor: "#232323", backgroundColor: PANEL, padding: 14 },
+  confirmationNoteTitle: { color: GOLD_LIGHT, fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800" },
+  confirmationNoteText: { color: MUTED, fontSize: 9.5, lineHeight: 15.5, marginTop: 7 },
+  doneButton: { width: "100%", minHeight: 58, borderRadius: 16, backgroundColor: GOLD, alignItems: "center", justifyContent: "center", marginTop: 16 },
+  doneButtonText: { color: "#090909", fontSize: 11, letterSpacing: 1.3, fontWeight: "900" },
 });

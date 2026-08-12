@@ -67,8 +67,8 @@ class BookingCreate(BaseModel):
     client_key: str = Field(min_length=12, max_length=128)
     service: str
     start_at: datetime
-    customer_name: str = Field(min_length=2, max_length=80)
-    customer_phone: str = Field(min_length=7, max_length=30)
+    customer_name: Optional[str] = Field(default=None, max_length=80)
+    customer_phone: Optional[str] = Field(default=None, max_length=30)
     customer_email: Optional[str] = Field(default=None, max_length=120)
     notes: Optional[str] = Field(default=None, max_length=300)
 
@@ -166,21 +166,18 @@ async def _available_slots_for_day(day: date, service: str, settings, exclude_bo
     windows = settings["weekly_hours"].get(str(day.weekday()), [])
     if not windows:
         return []
-
     duration = timedelta(minutes=service_data["duration_minutes"])
     interval = timedelta(minutes=int(settings.get("slot_interval_minutes", 15)))
     earliest = datetime.now(LONDON) + timedelta(minutes=int(settings.get("minimum_notice_minutes", 60)))
     max_day = datetime.now(LONDON).date() + timedelta(days=int(settings.get("booking_window_days", 60)))
     if day > max_day:
         return []
-
     blocked = []
     for period in settings.get("blocked_periods", []):
         try:
             blocked.append((datetime.fromisoformat(period["start"]), datetime.fromisoformat(period["end"])))
         except Exception:
             continue
-
     slots = []
     for window in windows:
         if not isinstance(window, list) or len(window) != 2:
@@ -257,7 +254,6 @@ async def create_booking(input: BookingCreate):
         raise HTTPException(status_code=409, detail="A verified payment method is required before booking.")
     if input.start_at.tzinfo is None:
         raise HTTPException(status_code=400, detail="Booking time must include a timezone.")
-
     requested = input.start_at.astimezone(LONDON)
     settings = await _get_booking_settings()
     if not settings.get("weekly_hours"):
@@ -265,17 +261,15 @@ async def create_booking(input: BookingCreate):
     available = await _available_slots_for_day(requested.date(), input.service, settings)
     if requested.isoformat() not in available:
         raise HTTPException(status_code=409, detail="That time is no longer available. Please choose another slot.")
-
     end_at = requested + timedelta(minutes=service_data["duration_minutes"])
     if await _has_overlap(requested, end_at):
         raise HTTPException(status_code=409, detail="That time overlaps another appointment. Please choose another slot.")
-
     now = datetime.now(timezone.utc).isoformat()
     doc = {
         "id": str(uuid.uuid4()),
         "client_key": input.client_key,
-        "customer_name": input.customer_name.strip(),
-        "customer_phone": input.customer_phone.strip(),
+        "customer_name": input.customer_name.strip() if input.customer_name else None,
+        "customer_phone": input.customer_phone.strip() if input.customer_phone else None,
         "customer_email": input.customer_email.strip().lower() if input.customer_email else None,
         "notes": input.notes.strip() if input.notes else None,
         "service": input.service,
@@ -329,19 +323,16 @@ async def reschedule_booking(booking_id: str, input: BookingReschedule):
         raise HTTPException(status_code=409, detail="Only confirmed appointments can be rescheduled.")
     if input.start_at.tzinfo is None:
         raise HTTPException(status_code=400, detail="Booking time must include a timezone.")
-
     settings = await _get_booking_settings()
     await _assert_booking_time_allowed(booking, settings, "reschedule")
     requested = input.start_at.astimezone(LONDON)
     available = await _available_slots_for_day(requested.date(), booking["service"], settings, exclude_booking_id=booking_id)
     if requested.isoformat() not in available:
         raise HTTPException(status_code=409, detail="That new time is no longer available.")
-
     duration = timedelta(minutes=int(booking["duration_minutes"]))
     end_at = requested + duration
     if await _has_overlap(requested, end_at, exclude_booking_id=booking_id):
         raise HTTPException(status_code=409, detail="That new time overlaps another appointment.")
-
     try:
         await db.bookings.update_one(
             {"id": booking_id, "client_key": input.client_key},
@@ -357,8 +348,7 @@ async def reschedule_booking(booking_id: str, input: BookingReschedule):
         )
     except DuplicateKeyError as exc:
         raise HTTPException(status_code=409, detail="That time has just been booked. Please choose another slot.") from exc
-    updated = await db.bookings.find_one({"id": booking_id}, {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0})
-    return updated
+    return await db.bookings.find_one({"id": booking_id}, {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0})
 
 @api_router.get("/payments/config")
 async def payment_config():

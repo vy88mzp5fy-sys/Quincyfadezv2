@@ -20,6 +20,12 @@
             "image": "./assets/icon.png"
           }
         }
+      ],
+      [
+        "@stripe/stripe-react-native",
+        {
+          "enableGooglePay": false
+        }
       ]
     ],
     "ios": {

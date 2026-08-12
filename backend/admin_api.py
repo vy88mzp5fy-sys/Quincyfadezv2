@@ -76,6 +76,11 @@ class AdminBlockTimeCreate(BaseModel):
     label: Optional[str] = Field(default=None, max_length=80)
 
 
+class AdminClientUpdate(BaseModel):
+    notes: Optional[str] = Field(default=None, max_length=2000)
+    tags: Optional[list[str]] = Field(default=None, max_length=20)
+
+
 def build_admin_router(db, services, get_booking_settings, london):
     router = APIRouter(prefix="/admin", tags=["admin"])
     admin_pin_hash = os.environ.get("ADMIN_PIN_SHA256", "").strip().lower()
@@ -279,7 +284,8 @@ def build_admin_router(db, services, get_booking_settings, london):
                 "phone": {"$last": "$customer_phone"},
                 "email": {"$last": "$customer_email"},
                 "booking_count": {"$sum": 1},
-                "total_spend": {"$sum": "$price"},
+                "completed_count": {"$sum": {"$cond": [{"$eq": ["$status", "completed"]}, 1, 0]}},
+                "total_spend": {"$sum": {"$cond": [{"$eq": ["$status", "completed"]}, "$price", 0]}},
                 "first_visit": {"$first": "$start_at"},
                 "last_visit": {"$last": "$start_at"},
                 "last_service": {"$last": "$service"},
@@ -292,30 +298,104 @@ def build_admin_router(db, services, get_booking_settings, london):
         needle = (q or "").strip().lower()
         now_iso = datetime.now(timezone.utc).isoformat()
         for item in clients:
+            client_key = item.get("_id")
+            profile = await db.client_profiles.find_one({"client_key": client_key}, {"_id": 0}) or {}
             record = {
-                "client_key": item.get("_id"),
+                "client_key": client_key,
                 "name": item.get("name"),
                 "phone": item.get("phone"),
                 "email": item.get("email"),
                 "booking_count": item.get("booking_count", 0),
+                "completed_count": item.get("completed_count", 0),
                 "total_spend": item.get("total_spend", 0),
                 "first_visit": item.get("first_visit"),
                 "last_visit": item.get("last_visit"),
                 "last_service": item.get("last_service"),
+                "notes": profile.get("notes"),
+                "tags": profile.get("tags") or [],
             }
             if needle:
                 haystack = " ".join(str(record.get(k) or "") for k in ["name", "phone", "email"]).lower()
                 if needle not in haystack:
                     continue
             next_booking = await db.bookings.find_one(
-                {"client_key": record["client_key"], "status": "confirmed", "start_at_utc": {"$gte": now_iso}},
+                {"client_key": client_key, "status": "confirmed", "start_at_utc": {"$gte": now_iso}},
                 {"_id": 0, "start_at": 1, "service": 1},
                 sort=[("start_at_utc", 1)],
             )
             record["next_booking"] = next_booking
-            record["regular"] = int(record["booking_count"] or 0) >= 3
+            record["regular"] = int(record["completed_count"] or 0) >= 3
             cleaned.append(record)
         return {"clients": cleaned}
+
+    @router.get("/clients/{client_key}")
+    async def admin_client_detail(client_key: str, _=Depends(require_admin)):
+        bookings = await db.bookings.find(
+            {"client_key": client_key},
+            {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
+        ).sort("start_at_utc", -1).to_list(300)
+        if not bookings:
+            raise HTTPException(status_code=404, detail="Client not found.")
+
+        latest = bookings[0]
+        profile = await db.client_profiles.find_one({"client_key": client_key}, {"_id": 0}) or {}
+        completed = [b for b in bookings if b.get("status") == "completed"]
+        no_shows = [b for b in bookings if b.get("status") == "no_show"]
+        cancelled = [b for b in bookings if b.get("status") == "cancelled"]
+        now_iso = datetime.now(timezone.utc).isoformat()
+        upcoming = sorted(
+            [b for b in bookings if b.get("status") in {"confirmed", "pending"} and b.get("start_at_utc", "") >= now_iso],
+            key=lambda b: b.get("start_at_utc", ""),
+        )
+        past = sorted(
+            [b for b in bookings if b.get("start_at_utc", "") < now_iso or b.get("status") in {"completed", "no_show", "cancelled"}],
+            key=lambda b: b.get("start_at_utc", ""),
+            reverse=True,
+        )
+        name = next((b.get("customer_name") for b in bookings if b.get("customer_name")), None)
+        phone = next((b.get("customer_phone") for b in bookings if b.get("customer_phone")), None)
+        email = next((b.get("customer_email") for b in bookings if b.get("customer_email")), None)
+        completed_sorted = sorted(completed, key=lambda b: b.get("start_at_utc", ""))
+        return {
+            "client": {
+                "client_key": client_key,
+                "name": name,
+                "phone": phone,
+                "email": email,
+                "booking_count": len(bookings),
+                "completed_count": len(completed),
+                "cancelled_count": len(cancelled),
+                "no_show_count": len(no_shows),
+                "total_spend": sum(float(b.get("price") or 0) for b in completed),
+                "first_visit": completed_sorted[0].get("start_at") if completed_sorted else None,
+                "last_visit": completed_sorted[-1].get("start_at") if completed_sorted else None,
+                "last_service": completed_sorted[-1].get("service") if completed_sorted else latest.get("service"),
+                "regular": len(completed) >= 3,
+                "notes": profile.get("notes"),
+                "tags": profile.get("tags") or [],
+                "next_booking": upcoming[0] if upcoming else None,
+            },
+            "upcoming": upcoming,
+            "history": past,
+        }
+
+    @router.put("/clients/{client_key}")
+    async def update_admin_client(client_key: str, input: AdminClientUpdate, _=Depends(require_admin)):
+        exists = await db.bookings.find_one({"client_key": client_key}, {"_id": 1})
+        if not exists:
+            raise HTTPException(status_code=404, detail="Client not found.")
+        patch = {"client_key": client_key, "updated_at": datetime.now(timezone.utc).isoformat()}
+        if input.notes is not None:
+            patch["notes"] = input.notes.strip() or None
+        if input.tags is not None:
+            patch["tags"] = list(dict.fromkeys(tag.strip() for tag in input.tags if tag.strip()))[:20]
+        await db.client_profiles.update_one(
+            {"client_key": client_key},
+            {"$set": patch, "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True,
+        )
+        profile = await db.client_profiles.find_one({"client_key": client_key}, {"_id": 0})
+        return {"profile": profile}
 
     @router.get("/settings")
     async def admin_settings(_=Depends(require_admin)):

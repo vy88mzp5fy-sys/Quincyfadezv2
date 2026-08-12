@@ -8,6 +8,36 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 
+ADMIN_SETTINGS_DEFAULTS = {
+    "booking_approval_required": False,
+    "booking_approval_expiry_minutes": 30,
+    "waiting_list_enabled": False,
+    "deposits_enabled": False,
+    "deposit_amount": 0,
+    "cancellation_fee_enabled": False,
+    "cancellation_fee_amount": 0,
+    "notifications_enabled": True,
+    "business_profile": {},
+    "policies": {},
+    "growth_settings": {
+        "reviews_enabled": True,
+        "promotions_enabled": False,
+        "referral_programme_enabled": False,
+        "digital_business_card_enabled": True,
+    },
+    "automations": {
+        "booking_confirmed": {"enabled": True, "channel": "push", "timing_minutes": 0},
+        "booking_reminder": {"enabled": True, "channel": "push", "timing_hours": 24},
+        "rescheduled_booking": {"enabled": True, "channel": "push", "timing_minutes": 0},
+        "leave_a_review": {"enabled": True, "channel": "push", "timing_hours": 2},
+        "waiting_list_alert": {"enabled": True, "channel": "push", "timing_minutes": 0},
+        "rebook_reminder": {"enabled": True, "channel": "push", "timing_weeks": 3},
+        "lapsed_client_winback": {"enabled": False, "channel": "push", "timing_weeks": 8},
+        "google_review_booster": {"enabled": False, "channel": "push", "timing_hours": 24},
+    },
+}
+
+
 class AdminLogin(BaseModel):
     pin: str = Field(min_length=4, max_length=64)
 
@@ -20,6 +50,18 @@ class AdminSettingsUpdate(BaseModel):
     reschedule_notice_hours: Optional[int] = Field(default=None, ge=0, le=720)
     weekly_hours: Optional[dict] = None
     blocked_periods: Optional[list] = None
+    booking_approval_required: Optional[bool] = None
+    booking_approval_expiry_minutes: Optional[int] = Field(default=None, ge=5, le=1440)
+    waiting_list_enabled: Optional[bool] = None
+    deposits_enabled: Optional[bool] = None
+    deposit_amount: Optional[float] = Field(default=None, ge=0, le=500)
+    cancellation_fee_enabled: Optional[bool] = None
+    cancellation_fee_amount: Optional[float] = Field(default=None, ge=0, le=500)
+    notifications_enabled: Optional[bool] = None
+    business_profile: Optional[dict] = None
+    policies: Optional[dict] = None
+    growth_settings: Optional[dict] = None
+    automations: Optional[dict] = None
 
 
 def build_admin_router(db, services, get_booking_settings, london):
@@ -29,6 +71,21 @@ def build_admin_router(db, services, get_booking_settings, london):
 
     def hash_value(value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    def merge_admin_defaults(settings: dict) -> dict:
+        merged = {**ADMIN_SETTINGS_DEFAULTS, **(settings or {})}
+        merged["growth_settings"] = {
+            **ADMIN_SETTINGS_DEFAULTS["growth_settings"],
+            **((settings or {}).get("growth_settings") or {}),
+        }
+        merged["automations"] = {
+            **ADMIN_SETTINGS_DEFAULTS["automations"],
+            **((settings or {}).get("automations") or {}),
+        }
+        return merged
+
+    async def full_settings() -> dict:
+        return merge_admin_defaults(await get_booking_settings())
 
     async def require_admin(authorization: Optional[str] = Header(default=None)):
         if not authorization or not authorization.lower().startswith("bearer "):
@@ -43,6 +100,10 @@ def build_admin_router(db, services, get_booking_settings, london):
         )
         if not session:
             raise HTTPException(status_code=401, detail="Admin session expired. Please sign in again.")
+        await db.admin_sessions.update_one(
+            {"token_hash": hash_value(token)},
+            {"$set": {"last_used_at": now}},
+        )
         return session
 
     @router.post("/login")
@@ -92,7 +153,7 @@ def build_admin_router(db, services, get_booking_settings, london):
         revenue = sum(float(b.get("price") or 0) for b in completed)
         booked_minutes = sum(int(b.get("duration_minutes") or 0) for b in today if b.get("status") != "cancelled")
 
-        settings = await get_booking_settings()
+        settings = await full_settings()
         windows = settings.get("weekly_hours", {}).get(str(now_local.date().weekday()), [])
         working_minutes = 0
         for window in windows:
@@ -197,9 +258,8 @@ def build_admin_router(db, services, get_booking_settings, london):
 
     @router.get("/settings")
     async def admin_settings(_=Depends(require_admin)):
-        settings = await get_booking_settings()
         return {
-            "settings": settings,
+            "settings": await full_settings(),
             "services": [{"name": name, **data} for name, data in services.items()],
         }
 
@@ -207,13 +267,29 @@ def build_admin_router(db, services, get_booking_settings, london):
     async def update_admin_settings(input: AdminSettingsUpdate, _=Depends(require_admin)):
         patch = {k: v for k, v in input.model_dump().items() if v is not None}
         if not patch:
-            return {"settings": await get_booking_settings()}
+            return {"settings": await full_settings()}
+
+        if "automations" in patch:
+            existing = (await full_settings()).get("automations", {})
+            automation_patch = patch.pop("automations") or {}
+            merged_automations = dict(existing)
+            for key, value in automation_patch.items():
+                if isinstance(value, dict) and isinstance(merged_automations.get(key), dict):
+                    merged_automations[key] = {**merged_automations[key], **value}
+                else:
+                    merged_automations[key] = value
+            patch["automations"] = merged_automations
+
+        if "growth_settings" in patch:
+            existing = (await full_settings()).get("growth_settings", {})
+            patch["growth_settings"] = {**existing, **(patch["growth_settings"] or {})}
+
         patch["updated_at"] = datetime.now(timezone.utc).isoformat()
         await db.booking_settings.update_one(
             {"key": "primary"},
             {"$set": patch, "$setOnInsert": {"key": "primary"}},
             upsert=True,
         )
-        return {"settings": await get_booking_settings()}
+        return {"settings": await full_settings()}
 
     return router

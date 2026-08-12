@@ -118,6 +118,12 @@ async def _get_booking_settings():
     return merged
 
 
+async def _assert_client_can_book(client_key: str):
+    profile = await db.client_profiles.find_one({"client_key": client_key}, {"_id": 0, "blocked": 1})
+    if profile and profile.get("blocked"):
+        raise HTTPException(status_code=403, detail="Online booking is unavailable for this account. Please contact QuincyFadez directly.")
+
+
 def _parse_hhmm(value: str) -> time:
     hour, minute = [int(part) for part in value.split(":", 1)]
     return time(hour=hour, minute=minute)
@@ -250,6 +256,7 @@ async def create_booking(input: BookingCreate):
     service_data = SERVICES.get(input.service)
     if not service_data:
         raise HTTPException(status_code=400, detail="Unknown service.")
+    await _assert_client_can_book(input.client_key)
     payment_method = await _verified_payment(input.client_key)
     if not payment_method:
         raise HTTPException(status_code=409, detail="A verified payment method is required before booking.")
@@ -266,6 +273,8 @@ async def create_booking(input: BookingCreate):
     if await _has_overlap(requested, end_at):
         raise HTTPException(status_code=409, detail="That time overlaps another appointment. Please choose another slot.")
     now = datetime.now(timezone.utc).isoformat()
+    approval_required = bool(settings.get("booking_approval_required", False))
+    status = "pending" if approval_required else "confirmed"
     doc = {
         "id": str(uuid.uuid4()),
         "client_key": input.client_key,
@@ -281,7 +290,9 @@ async def create_booking(input: BookingCreate):
         "start_at_utc": requested.astimezone(timezone.utc).isoformat(),
         "end_at_utc": end_at.astimezone(timezone.utc).isoformat(),
         "active_slot_key": _slot_key(requested),
-        "status": "confirmed",
+        "status": status,
+        "approval_required": approval_required,
+        "approval_expires_at": (datetime.now(timezone.utc) + timedelta(minutes=int(settings.get("booking_approval_expiry_minutes", 30)))).isoformat() if approval_required else None,
         "stripe_payment_method_id": payment_method.id,
         "created_at": now,
         "updated_at": now,
@@ -322,6 +333,7 @@ async def reschedule_booking(booking_id: str, input: BookingReschedule):
         raise HTTPException(status_code=404, detail="Booking not found.")
     if booking.get("status") != "confirmed":
         raise HTTPException(status_code=409, detail="Only confirmed appointments can be rescheduled.")
+    await _assert_client_can_book(input.client_key)
     if input.start_at.tzinfo is None:
         raise HTTPException(status_code=400, detail="Booking time must include a timezone.")
     settings = await _get_booking_settings()
@@ -469,6 +481,7 @@ async def startup_indexes():
     await db.booking_settings.create_index("key", unique=True)
     await db.admin_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.admin_sessions.create_index("token_hash", unique=True)
+    await db.client_profiles.create_index("client_key", unique=True)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

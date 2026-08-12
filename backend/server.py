@@ -1,14 +1,16 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo.errors import DuplicateKeyError
 import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, date, time
+from zoneinfo import ZoneInfo
 import stripe
 
 
@@ -19,11 +21,32 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-# Secret Stripe credentials always remain server-side.
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+LONDON = ZoneInfo("Europe/London")
+
+SERVICES = {
+    "Haircut": {"price": 20, "duration_minutes": 45},
+    "Haircut & Beard": {"price": 25, "duration_minutes": 60},
+    "Shape Up": {"price": 10, "duration_minutes": 15},
+    "Beard Trim": {"price": 10, "duration_minutes": 15},
+}
+
+# Booking hours are deliberately NOT invented. Until the barber schedule is
+# configured, availability returns setup_required=true rather than exposing
+# accidental bookable times. Store a document in booking_settings with key
+# "primary" and weekly_hours such as {"1": [["10:00", "18:00"]]}.
+DEFAULT_BOOKING_SETTINGS = {
+    "key": "primary",
+    "timezone": "Europe/London",
+    "slot_interval_minutes": 15,
+    "minimum_notice_minutes": 60,
+    "booking_window_days": 60,
+    "weekly_hours": {},
+    "blocked_periods": [],
+}
 
 
 class StatusCheck(BaseModel):
@@ -55,6 +78,16 @@ class PaymentMethodSummary(BaseModel):
     last4: Optional[str] = None
     exp_month: Optional[int] = None
     exp_year: Optional[int] = None
+
+
+class BookingCreate(BaseModel):
+    client_key: str = Field(min_length=12, max_length=128)
+    service: str
+    start_at: datetime
+
+
+class BookingCancel(BaseModel):
+    client_key: str = Field(min_length=12, max_length=128)
 
 
 def _stripe_ready() -> None:
@@ -97,9 +130,116 @@ async def _get_or_create_stripe_customer(client_key: str) -> str:
     return customer.id
 
 
+async def _get_booking_settings():
+    settings = await db.booking_settings.find_one({"key": "primary"}, {"_id": 0})
+    merged = {**DEFAULT_BOOKING_SETTINGS, **(settings or {})}
+    merged["weekly_hours"] = merged.get("weekly_hours") or {}
+    merged["blocked_periods"] = merged.get("blocked_periods") or []
+    return merged
+
+
+def _parse_hhmm(value: str) -> time:
+    try:
+        hour, minute = [int(part) for part in value.split(":", 1)]
+        return time(hour=hour, minute=minute)
+    except Exception as exc:
+        raise ValueError(f"Invalid booking time: {value}") from exc
+
+
+def _overlaps(start_a: datetime, end_a: datetime, start_b: datetime, end_b: datetime) -> bool:
+    return start_a < end_b and end_a > start_b
+
+
+def _slot_key(start_at: datetime) -> str:
+    return start_at.astimezone(timezone.utc).isoformat()
+
+
+async def _verified_payment(client_key: str):
+    record = await db.payment_customers.find_one(
+        {"client_key": client_key},
+        {"_id": 0, "stripe_customer_id": 1, "stripe_payment_method_id": 1},
+    )
+    if not record or not record.get("stripe_customer_id") or not stripe.api_key:
+        return None
+    try:
+        methods = stripe.Customer.list_payment_methods(record["stripe_customer_id"], type="card", limit=10)
+    except stripe.StripeError:
+        return None
+    attached = list(getattr(methods, "data", []) or [])
+    if not attached:
+        return None
+    preferred = record.get("stripe_payment_method_id")
+    return next((pm for pm in attached if pm.id == preferred), attached[0])
+
+
+async def _available_slots_for_day(day: date, service: str, settings):
+    service_data = SERVICES.get(service)
+    if not service_data:
+        raise HTTPException(status_code=400, detail="Unknown service.")
+
+    weekday_key = str(day.weekday())
+    windows = settings["weekly_hours"].get(weekday_key, [])
+    if not windows:
+        return []
+
+    duration = timedelta(minutes=service_data["duration_minutes"])
+    interval = timedelta(minutes=int(settings.get("slot_interval_minutes", 15)))
+    earliest = datetime.now(LONDON) + timedelta(minutes=int(settings.get("minimum_notice_minutes", 60)))
+
+    day_start = datetime.combine(day, time.min, tzinfo=LONDON)
+    day_end = day_start + timedelta(days=1)
+    existing = await db.bookings.find(
+        {
+            "status": {"$in": ["confirmed", "pending"]},
+            "start_at_utc": {"$lt": day_end.astimezone(timezone.utc).isoformat()},
+            "end_at_utc": {"$gt": day_start.astimezone(timezone.utc).isoformat()},
+        },
+        {"_id": 0, "start_at_utc": 1, "end_at_utc": 1},
+    ).to_list(500)
+
+    blocked = []
+    for period in settings.get("blocked_periods", []):
+        try:
+            blocked.append((datetime.fromisoformat(period["start"]), datetime.fromisoformat(period["end"])))
+        except Exception:
+            continue
+
+    slots = []
+    for window in windows:
+        if not isinstance(window, list) or len(window) != 2:
+            continue
+        try:
+            window_start = datetime.combine(day, _parse_hhmm(window[0]), tzinfo=LONDON)
+            window_end = datetime.combine(day, _parse_hhmm(window[1]), tzinfo=LONDON)
+        except ValueError:
+            continue
+
+        cursor = window_start
+        while cursor + duration <= window_end:
+            slot_end = cursor + duration
+            if cursor >= earliest:
+                occupied = any(
+                    _overlaps(
+                        cursor.astimezone(timezone.utc),
+                        slot_end.astimezone(timezone.utc),
+                        datetime.fromisoformat(item["start_at_utc"]),
+                        datetime.fromisoformat(item["end_at_utc"]),
+                    )
+                    for item in existing
+                )
+                blocked_now = any(
+                    _overlaps(cursor, slot_end, start.astimezone(LONDON), end.astimezone(LONDON))
+                    for start, end in blocked
+                )
+                if not occupied and not blocked_now:
+                    slots.append(cursor.isoformat())
+            cursor += interval
+    return slots
+
+
 @api_router.get("/")
 async def root():
-    return {"message": "Hello World"}
+    return {"message": "QuincyFadez API"}
 
 
 @api_router.post("/status", response_model=StatusCheck)
@@ -120,6 +260,117 @@ async def get_status_checks():
     return status_checks
 
 
+@api_router.get("/booking/services")
+async def booking_services():
+    return {
+        "services": [
+            {"name": name, **data}
+            for name, data in SERVICES.items()
+        ]
+    }
+
+
+@api_router.get("/booking/availability")
+async def booking_availability(
+    service: str,
+    start_date: Optional[date] = Query(default=None),
+    days: int = Query(default=14, ge=1, le=31),
+):
+    settings = await _get_booking_settings()
+    configured = bool(settings.get("weekly_hours"))
+    first_day = start_date or datetime.now(LONDON).date()
+    max_day = datetime.now(LONDON).date() + timedelta(days=int(settings.get("booking_window_days", 60)))
+    result = []
+
+    for offset in range(days):
+        current_day = first_day + timedelta(days=offset)
+        if current_day > max_day:
+            break
+        slots = await _available_slots_for_day(current_day, service, settings) if configured else []
+        result.append({"date": current_day.isoformat(), "slots": slots})
+
+    return {
+        "timezone": settings.get("timezone", "Europe/London"),
+        "setup_required": not configured,
+        "days": result,
+    }
+
+
+@api_router.post("/booking/appointments")
+async def create_booking(input: BookingCreate):
+    service_data = SERVICES.get(input.service)
+    if not service_data:
+        raise HTTPException(status_code=400, detail="Unknown service.")
+
+    payment_method = await _verified_payment(input.client_key)
+    if not payment_method:
+        raise HTTPException(status_code=409, detail="A verified payment method is required before booking.")
+
+    requested = input.start_at
+    if requested.tzinfo is None:
+        raise HTTPException(status_code=400, detail="Booking time must include a timezone.")
+    requested = requested.astimezone(LONDON)
+
+    settings = await _get_booking_settings()
+    if not settings.get("weekly_hours"):
+        raise HTTPException(status_code=503, detail="Booking availability is not configured yet.")
+
+    available = await _available_slots_for_day(requested.date(), input.service, settings)
+    if requested.isoformat() not in available:
+        raise HTTPException(status_code=409, detail="That time is no longer available. Please choose another slot.")
+
+    end_at = requested + timedelta(minutes=service_data["duration_minutes"])
+    now = datetime.now(timezone.utc).isoformat()
+    booking_id = str(uuid.uuid4())
+    doc = {
+        "id": booking_id,
+        "client_key": input.client_key,
+        "service": input.service,
+        "price": service_data["price"],
+        "duration_minutes": service_data["duration_minutes"],
+        "start_at": requested.isoformat(),
+        "end_at": end_at.isoformat(),
+        "start_at_utc": requested.astimezone(timezone.utc).isoformat(),
+        "end_at_utc": end_at.astimezone(timezone.utc).isoformat(),
+        "active_slot_key": _slot_key(requested),
+        "status": "confirmed",
+        "stripe_payment_method_id": payment_method.id,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+    try:
+        await db.bookings.insert_one(doc)
+    except DuplicateKeyError as exc:
+        raise HTTPException(status_code=409, detail="That time has just been booked. Please choose another slot.") from exc
+
+    return {k: v for k, v in doc.items() if k != "stripe_payment_method_id"}
+
+
+@api_router.get("/booking/appointments/{client_key}")
+async def list_bookings(client_key: str):
+    bookings = await db.bookings.find(
+        {"client_key": client_key},
+        {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
+    ).sort("start_at_utc", 1).to_list(200)
+    return {"bookings": bookings}
+
+
+@api_router.post("/booking/appointments/{booking_id}/cancel")
+async def cancel_booking(booking_id: str, input: BookingCancel):
+    booking = await db.bookings.find_one({"id": booking_id, "client_key": input.client_key}, {"_id": 0})
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.get("status") == "cancelled":
+        return {"cancelled": True}
+
+    await db.bookings.update_one(
+        {"id": booking_id, "client_key": input.client_key},
+        {"$set": {"status": "cancelled", "active_slot_key": None, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    return {"cancelled": True}
+
+
 @api_router.get("/payments/config")
 async def payment_config():
     publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
@@ -130,10 +381,8 @@ async def payment_config():
 
 @api_router.post("/payments/confirm-setup")
 async def confirm_payment_setup(input: PaymentSetupConfirm):
-    """Create and confirm a SetupIntent from Stripe's ConfirmationToken."""
     _stripe_ready()
     customer_id = await _get_or_create_stripe_customer(input.client_key)
-
     try:
         setup_intent = stripe.SetupIntent.create(
             customer=customer_id,
@@ -145,19 +394,11 @@ async def confirm_payment_setup(input: PaymentSetupConfirm):
         )
     except stripe.StripeError as exc:
         logger.warning("Stripe SetupIntent failed: %s", getattr(exc, "user_message", None) or str(exc))
-        raise HTTPException(
-            status_code=400,
-            detail=getattr(exc, "user_message", None) or "Stripe could not set up this payment method.",
-        ) from exc
+        raise HTTPException(status_code=400, detail=getattr(exc, "user_message", None) or "Stripe could not set up this payment method.") from exc
 
     await db.payment_customers.update_one(
         {"client_key": input.client_key},
-        {
-            "$set": {
-                "latest_setup_intent_id": setup_intent.id,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-        },
+        {"$set": {"latest_setup_intent_id": setup_intent.id, "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
     return {"client_secret": setup_intent.client_secret}
@@ -165,7 +406,6 @@ async def confirm_payment_setup(input: PaymentSetupConfirm):
 
 @api_router.post("/payments/customer-session")
 async def create_payment_customer_session(input: PaymentClientRequest):
-    """Create a short-lived CustomerSession for Stripe's Payment Method Settings Sheet."""
     _stripe_ready()
     customer_id = await _get_or_create_stripe_customer(input.client_key)
     try:
@@ -176,11 +416,7 @@ async def create_payment_customer_session(input: PaymentClientRequest):
                     "enabled": True,
                     "features": {
                         "payment_method_remove": "enabled",
-                        "payment_method_allow_redisplay_filters": [
-                            "always",
-                            "limited",
-                            "unspecified",
-                        ],
+                        "payment_method_allow_redisplay_filters": ["always", "limited", "unspecified"],
                     },
                 }
             },
@@ -188,16 +424,11 @@ async def create_payment_customer_session(input: PaymentClientRequest):
     except stripe.StripeError as exc:
         logger.warning("Stripe CustomerSession failed: %s", str(exc))
         raise HTTPException(status_code=400, detail="Payment settings are unavailable right now.") from exc
-
-    return {
-        "customer": customer_id,
-        "customer_session_client_secret": session.client_secret,
-    }
+    return {"customer": customer_id, "customer_session_client_secret": session.client_secret}
 
 
 @api_router.post("/payments/customer-sheet-setup")
 async def create_customer_sheet_setup_intent(input: PaymentClientRequest):
-    """Create a SetupIntent used when a customer adds a card from Account settings."""
     _stripe_ready()
     customer_id = await _get_or_create_stripe_customer(input.client_key)
     try:
@@ -210,25 +441,20 @@ async def create_customer_sheet_setup_intent(input: PaymentClientRequest):
     except stripe.StripeError as exc:
         logger.warning("Stripe CustomerSheet SetupIntent failed: %s", str(exc))
         raise HTTPException(status_code=400, detail="A new payment method could not be prepared.") from exc
-
     return {"setup_intent_client_secret": setup_intent.client_secret}
 
 
 @api_router.post("/payments/verify")
 async def verify_payment_setup(input: PaymentVerifyRequest):
-    """Verify that an attached Stripe payment method exists before booking is unlocked."""
     _stripe_ready()
     record = await db.payment_customers.find_one(
         {"client_key": input.client_key},
-        {"_id": 0, "latest_setup_intent_id": 1, "stripe_customer_id": 1},
+        {"_id": 0, "latest_setup_intent_id": 1, "stripe_customer_id": 1, "stripe_payment_method_id": 1},
     )
     customer_id = (record or {}).get("stripe_customer_id")
     if not customer_id:
         return {"verified": False, "reason": "No payment customer exists yet."}
 
-    # First check the currently attached card methods. This also means removing a
-    # card in CustomerSheet immediately locks booking again rather than trusting
-    # an old successful SetupIntent.
     try:
         payment_methods = stripe.Customer.list_payment_methods(customer_id, type="card", limit=10)
     except stripe.StripeError as exc:
@@ -243,54 +469,13 @@ async def verify_payment_setup(input: PaymentVerifyRequest):
         now = datetime.now(timezone.utc).isoformat()
         await db.payment_customers.update_one(
             {"client_key": input.client_key},
-            {
-                "$set": {
-                    "verified": True,
-                    "stripe_payment_method_id": payment_method.id,
-                    "payment_method_summary": summary,
-                    "verified_at": now,
-                    "updated_at": now,
-                }
-            },
+            {"$set": {"verified": True, "stripe_payment_method_id": payment_method.id, "payment_method_summary": summary, "verified_at": now, "updated_at": now}},
         )
         return {"verified": True, "payment_method": summary}
 
-    setup_intent_id = (record or {}).get("latest_setup_intent_id")
-    if setup_intent_id:
-        try:
-            setup_intent = stripe.SetupIntent.retrieve(setup_intent_id)
-            if setup_intent.status == "succeeded" and setup_intent.payment_method:
-                payment_method = stripe.PaymentMethod.retrieve(setup_intent.payment_method)
-                # A method removed in Account has customer=None, so never treat it as verified.
-                if getattr(payment_method, "customer", None) == customer_id:
-                    summary = _card_summary(payment_method)
-                    now = datetime.now(timezone.utc).isoformat()
-                    await db.payment_customers.update_one(
-                        {"client_key": input.client_key},
-                        {
-                            "$set": {
-                                "verified": True,
-                                "stripe_payment_method_id": payment_method.id,
-                                "payment_method_summary": summary,
-                                "verified_at": now,
-                                "updated_at": now,
-                            }
-                        },
-                    )
-                    return {"verified": True, "payment_method": summary}
-        except stripe.StripeError as exc:
-            logger.warning("Stripe SetupIntent verification failed: %s", str(exc))
-
     await db.payment_customers.update_one(
         {"client_key": input.client_key},
-        {
-            "$set": {
-                "verified": False,
-                "stripe_payment_method_id": None,
-                "payment_method_summary": None,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }
-        },
+        {"$set": {"verified": False, "stripe_payment_method_id": None, "payment_method_summary": None, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
     return {"verified": False, "reason": "No saved payment method is attached."}
 
@@ -311,11 +496,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+@app.on_event("startup")
+async def startup_indexes():
+    await db.bookings.create_index("active_slot_key", unique=True, sparse=True)
+    await db.bookings.create_index([("client_key", 1), ("start_at_utc", 1)])
+    await db.booking_settings.create_index("key", unique=True)
 
 
 @app.on_event("shutdown")

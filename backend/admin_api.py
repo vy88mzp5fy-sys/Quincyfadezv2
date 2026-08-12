@@ -79,6 +79,8 @@ class AdminBlockTimeCreate(BaseModel):
 class AdminClientUpdate(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=2000)
     tags: Optional[list[str]] = Field(default=None, max_length=20)
+    blocked: Optional[bool] = None
+    block_reason: Optional[str] = Field(default=None, max_length=300)
 
 
 def build_admin_router(db, services, get_booking_settings, london):
@@ -389,6 +391,8 @@ def build_admin_router(db, services, get_booking_settings, london):
                 "last_service": item.get("last_service"),
                 "notes": profile.get("notes"),
                 "tags": profile.get("tags") or [],
+                "blocked": bool(profile.get("blocked", False)),
+                "block_reason": profile.get("block_reason"),
             }
             if needle:
                 haystack = " ".join(str(record.get(k) or "") for k in ["name", "phone", "email"]).lower()
@@ -441,6 +445,8 @@ def build_admin_router(db, services, get_booking_settings, london):
                 "regular": len(completed) >= 3,
                 "notes": profile.get("notes"),
                 "tags": profile.get("tags") or [],
+                "blocked": bool(profile.get("blocked", False)),
+                "block_reason": profile.get("block_reason"),
                 "next_booking": upcoming[0] if upcoming else None,
             },
             "upcoming": upcoming,
@@ -452,14 +458,22 @@ def build_admin_router(db, services, get_booking_settings, london):
         exists = await db.bookings.find_one({"client_key": client_key}, {"_id": 1})
         if not exists:
             raise HTTPException(status_code=404, detail="Client not found.")
-        patch = {"client_key": client_key, "updated_at": datetime.now(timezone.utc).isoformat()}
+        now = datetime.now(timezone.utc).isoformat()
+        patch = {"client_key": client_key, "updated_at": now}
         if input.notes is not None:
             patch["notes"] = input.notes.strip() or None
         if input.tags is not None:
             patch["tags"] = list(dict.fromkeys(tag.strip() for tag in input.tags if tag.strip()))[:20]
+        if input.blocked is not None:
+            patch["blocked"] = input.blocked
+            patch["blocked_at"] = now if input.blocked else None
+            if not input.blocked:
+                patch["block_reason"] = None
+        if input.block_reason is not None:
+            patch["block_reason"] = input.block_reason.strip() or None
         await db.client_profiles.update_one(
             {"client_key": client_key},
-            {"$set": patch, "$setOnInsert": {"created_at": datetime.now(timezone.utc).isoformat()}},
+            {"$set": patch, "$setOnInsert": {"created_at": now}},
             upsert=True,
         )
         profile = await db.client_profiles.find_one({"client_key": client_key}, {"_id": 0})

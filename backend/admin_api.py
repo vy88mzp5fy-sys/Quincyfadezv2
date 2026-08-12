@@ -3,6 +3,7 @@ from typing import Optional
 import hashlib
 import os
 import secrets
+import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -62,6 +63,17 @@ class AdminSettingsUpdate(BaseModel):
     policies: Optional[dict] = None
     growth_settings: Optional[dict] = None
     automations: Optional[dict] = None
+
+
+class AdminBookingStatusUpdate(BaseModel):
+    status: str
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class AdminBlockTimeCreate(BaseModel):
+    start_at: datetime
+    end_at: datetime
+    label: Optional[str] = Field(default=None, max_length=80)
 
 
 def build_admin_router(db, services, get_booking_settings, london):
@@ -176,13 +188,18 @@ def build_admin_router(db, services, get_booking_settings, london):
             if first and day_start_utc <= first.get("start_at_utc", "") < day_end_utc:
                 new_clients += 1
 
-        next_booking = next((b for b in confirmed if b.get("start_at_utc", "") >= datetime.now(timezone.utc).isoformat()), None)
+        now_utc_iso = datetime.now(timezone.utc).isoformat()
+        next_booking = next((b for b in confirmed if b.get("start_at_utc", "") >= now_utc_iso), None)
+        pending_requests = await db.bookings.count_documents(
+            {"status": "pending", "start_at_utc": {"$gte": now_utc_iso}}
+        )
         return {
             "date": now_local.date().isoformat(),
             "today_revenue": revenue,
             "today_bookings": len(today),
             "new_clients": new_clients,
             "utilisation_percent": utilisation,
+            "pending_requests": pending_requests,
             "next_booking": next_booking,
             "appointments": today,
         }
@@ -206,6 +223,50 @@ def build_admin_router(db, services, get_booking_settings, london):
             {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
         ).sort("start_at_utc", 1).to_list(1000)
         return {"start_date": first_day.isoformat(), "days": days, "bookings": bookings}
+
+    @router.get("/booking-requests")
+    async def admin_booking_requests(_=Depends(require_admin)):
+        now_iso = datetime.now(timezone.utc).isoformat()
+        bookings = await db.bookings.find(
+            {"status": "pending", "start_at_utc": {"$gte": now_iso}},
+            {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
+        ).sort("start_at_utc", 1).to_list(500)
+        return {"bookings": bookings}
+
+    @router.patch("/bookings/{booking_id}/status")
+    async def update_booking_status(booking_id: str, input: AdminBookingStatusUpdate, _=Depends(require_admin)):
+        allowed = {"confirmed", "completed", "no_show", "cancelled"}
+        status = input.status.strip().lower()
+        if status not in allowed:
+            raise HTTPException(status_code=400, detail="Unsupported appointment status.")
+
+        booking = await db.bookings.find_one({"id": booking_id}, {"_id": 0})
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found.")
+
+        now = datetime.now(timezone.utc).isoformat()
+        patch = {"status": status, "updated_at": now}
+        if input.note is not None:
+            patch["admin_note"] = input.note.strip() or None
+        if status == "completed":
+            patch["completed_at"] = now
+        elif status == "no_show":
+            patch["no_show_at"] = now
+            patch["active_slot_key"] = None
+        elif status == "cancelled":
+            patch["cancelled_at"] = now
+            patch["cancelled_by"] = "admin"
+            patch["active_slot_key"] = None
+        elif status == "confirmed":
+            if booking.get("status") == "cancelled":
+                raise HTTPException(status_code=409, detail="Cancelled bookings cannot be restored. Create a new appointment instead.")
+
+        await db.bookings.update_one({"id": booking_id}, {"$set": patch})
+        updated = await db.bookings.find_one(
+            {"id": booking_id},
+            {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
+        )
+        return {"booking": updated}
 
     @router.get("/clients")
     async def admin_clients(q: Optional[str] = Query(default=None, max_length=80), _=Depends(require_admin)):
@@ -291,5 +352,38 @@ def build_admin_router(db, services, get_booking_settings, london):
             upsert=True,
         )
         return {"settings": await full_settings()}
+
+    @router.post("/blocked-time")
+    async def create_blocked_time(input: AdminBlockTimeCreate, _=Depends(require_admin)):
+        if input.start_at.tzinfo is None or input.end_at.tzinfo is None:
+            raise HTTPException(status_code=400, detail="Blocked time must include a timezone.")
+        start_at = input.start_at.astimezone(london)
+        end_at = input.end_at.astimezone(london)
+        if end_at <= start_at:
+            raise HTTPException(status_code=400, detail="Blocked time must end after it starts.")
+
+        block = {
+            "id": str(uuid.uuid4()),
+            "label": input.label.strip() if input.label else "Blocked Time",
+            "start": start_at.isoformat(),
+            "end": end_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.booking_settings.update_one(
+            {"key": "primary"},
+            {"$push": {"blocked_periods": block}, "$setOnInsert": {"key": "primary"}},
+            upsert=True,
+        )
+        return {"blocked_time": block, "settings": await full_settings()}
+
+    @router.delete("/blocked-time/{block_id}")
+    async def delete_blocked_time(block_id: str, _=Depends(require_admin)):
+        result = await db.booking_settings.update_one(
+            {"key": "primary"},
+            {"$pull": {"blocked_periods": {"id": block_id}}},
+        )
+        if not result.modified_count:
+            raise HTTPException(status_code=404, detail="Blocked time not found.")
+        return {"deleted": True, "settings": await full_settings()}
 
     return router

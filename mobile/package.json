@@ -13,6 +13,8 @@
     "build:android": "eas build --profile preview --platform android"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@stripe/stripe-react-native": "0.64.0",
     "expo": "~57.0.0",
     "expo-splash-screen": "~57.0.4",
     "react": "19.2.3",

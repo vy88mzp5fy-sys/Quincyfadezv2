@@ -155,7 +155,16 @@ async def _verified_payment(client_key: str):
     return next((pm for pm in attached if pm.id == preferred), attached[0])
 
 
+async def _expire_pending_requests():
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await db.bookings.update_many(
+        {"status": "pending", "approval_expires_at": {"$ne": None, "$lte": now_iso}},
+        {"$set": {"status": "expired", "active_slot_key": None, "expired_at": now_iso, "updated_at": now_iso}},
+    )
+
+
 async def _has_overlap(start_at: datetime, end_at: datetime, exclude_booking_id: Optional[str] = None) -> bool:
+    await _expire_pending_requests()
     query = {
         "status": {"$in": ["confirmed", "pending"]},
         "start_at_utc": {"$lt": end_at.astimezone(timezone.utc).isoformat()},
@@ -167,6 +176,7 @@ async def _has_overlap(start_at: datetime, end_at: datetime, exclude_booking_id:
 
 
 async def _available_slots_for_day(day: date, service: str, settings, exclude_booking_id: Optional[str] = None):
+    await _expire_pending_requests()
     service_data = SERVICES.get(service)
     if not service_data:
         raise HTTPException(status_code=400, detail="Unknown service.")
@@ -305,6 +315,7 @@ async def create_booking(input: BookingCreate):
 
 @api_router.get("/booking/appointments/{client_key}")
 async def list_bookings(client_key: str):
+    await _expire_pending_requests()
     bookings = await db.bookings.find(
         {"client_key": client_key},
         {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
@@ -313,9 +324,12 @@ async def list_bookings(client_key: str):
 
 @api_router.post("/booking/appointments/{booking_id}/cancel")
 async def cancel_booking(booking_id: str, input: BookingCancel):
+    await _expire_pending_requests()
     booking = await db.bookings.find_one({"id": booking_id, "client_key": input.client_key}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
+    if booking.get("status") == "expired":
+        raise HTTPException(status_code=409, detail="This booking request has already expired.")
     if booking.get("status") == "cancelled":
         return {"cancelled": True}
     settings = await _get_booking_settings()
@@ -328,6 +342,7 @@ async def cancel_booking(booking_id: str, input: BookingCancel):
 
 @api_router.post("/booking/appointments/{booking_id}/reschedule")
 async def reschedule_booking(booking_id: str, input: BookingReschedule):
+    await _expire_pending_requests()
     booking = await db.bookings.find_one({"id": booking_id, "client_key": input.client_key}, {"_id": 0})
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")

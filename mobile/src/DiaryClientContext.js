@@ -36,8 +36,8 @@ async function fetchClientContext(clientKey) {
 }
 
 function ContextPill({ label, tone = "neutral" }) {
-  return <View style={[styles.pill, tone === "positive" && styles.pillPositive, tone === "warning" && styles.pillWarning, tone === "danger" && styles.pillDanger]}>
-    <Text style={[styles.pillText, tone === "positive" && styles.pillTextPositive, tone === "warning" && styles.pillTextWarning, tone === "danger" && styles.pillTextDanger]}>{label}</Text>
+  return <View style={[styles.pill, tone === "positive" && styles.pillPositive, tone === "warning" && styles.pillWarning, tone === "danger" && styles.pillDanger, tone === "note" && styles.pillNote]}>
+    <Text style={[styles.pillText, tone === "positive" && styles.pillTextPositive, tone === "warning" && styles.pillTextWarning, tone === "danger" && styles.pillTextDanger, tone === "note" && styles.pillTextNote]}>{label}</Text>
   </View>;
 }
 
@@ -71,6 +71,7 @@ export default function DiaryClientContext({ clientKey }) {
     const completed = Number(client.completed_count || 0);
     const noShows = Number(client.no_show_count || 0);
     const cancelled = Number(client.cancelled_count || 0);
+    const hasPrivateNote = Boolean(String(client.notes || "").trim());
 
     if (client.blocked) items.push({ label: "BOOKING BLOCKED", tone: "danger" });
     if (lowerTags.includes("vip")) items.push({ label: "VIP", tone: "positive" });
@@ -80,6 +81,8 @@ export default function DiaryClientContext({ clientKey }) {
     if (noShows >= 2 || lowerTags.some((tag) => tag.includes("no-show risk"))) items.push({ label: `${Math.max(noShows, 2)} NO-SHOWS · RISK`, tone: "danger" });
     else if (noShows === 1) items.push({ label: "1 NO-SHOW", tone: "warning" });
     else if (cancelled >= 3 || lowerTags.some((tag) => tag.includes("late risk"))) items.push({ label: "WATCH RELIABILITY", tone: "warning" });
+
+    if (hasPrivateNote) items.push({ label: "PRIVATE NOTE", tone: "note" });
 
     tags
       .filter((tag) => !["vip", "regular", "no-show risk", "late risk"].includes(String(tag).toLowerCase()))
@@ -99,8 +102,10 @@ const styles = StyleSheet.create({
   pillPositive:{borderColor:"#315342",backgroundColor:"#09110D"},
   pillWarning:{borderColor:"#5A4523",backgroundColor:"#171107"},
   pillDanger:{borderColor:"#5A302B",backgroundColor:"#160B09"},
+  pillNote:{borderColor:"#3D3553",backgroundColor:"#0E0B16"},
   pillText:{color:"#888",fontSize:5.2,letterSpacing:.45,fontWeight:"900"},
   pillTextPositive:{color:"#91D1AD"},
   pillTextWarning:{color:GOLD_LIGHT},
   pillTextDanger:{color:"#D98778"},
+  pillTextNote:{color:"#B9A9DD"},
 });

@@ -24,7 +24,7 @@ jobs:
           grep -v '^emergentintegrations==' requirements.txt > requirements-ci.txt
           pip install -r requirements-ci.txt
       - name: Compile backend modules
-        run: python -m py_compile server.py admin_api.py payment_policy.py
+        run: python -m py_compile server.py app.py client_auth.py admin_api.py payment_policy.py
       - name: Run guarded payment policy tests
         env:
           PYTHONPATH: .

@@ -25,6 +25,7 @@ stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 LONDON = ZoneInfo("Europe/London")
+PAYMENT_STATE_VERSION = 1
 
 SERVICES = {
     "Haircut": {"price": 20, "duration_minutes": 45},
@@ -93,6 +94,55 @@ def _card_summary(payment_method):
         "last4": getattr(card, "last4", None) if card else None,
         "exp_month": getattr(card, "exp_month", None) if card else None,
         "exp_year": getattr(card, "exp_year", None) if card else None,
+    }
+
+
+def _initial_booking_payment_state(payment_method, service_value: float, verified_at: str):
+    return {
+        "payment_state_version": PAYMENT_STATE_VERSION,
+        "payment_status": "not_charged",
+        "payment_method_verified": True,
+        "payment_method_verified_at": verified_at,
+        "payment_method_summary": _card_summary(payment_method),
+        "service_value": float(service_value),
+        "captured_amount": 0.0,
+        "refunded_amount": 0.0,
+        "deposit_amount_captured": 0.0,
+        "cancellation_fee_captured": 0.0,
+        "last_payment_event_at": None,
+    }
+
+
+async def _payment_ledger_summary(booking_id: str):
+    transactions = await db.payment_transactions.find(
+        {"booking_id": booking_id},
+        {"_id": 0, "stripe_payment_method_id": 0},
+    ).sort("created_at", 1).to_list(200)
+    captured = 0.0
+    refunded = 0.0
+    deposit_captured = 0.0
+    cancellation_fee_captured = 0.0
+    for transaction in transactions:
+        amount = float(transaction.get("amount") or 0)
+        status = transaction.get("status")
+        kind = transaction.get("kind")
+        if status in {"captured", "succeeded"}:
+            if kind == "refund":
+                refunded += amount
+            else:
+                captured += amount
+                if kind == "deposit":
+                    deposit_captured += amount
+                if kind == "cancellation_fee":
+                    cancellation_fee_captured += amount
+    net_captured = max(0.0, captured - refunded)
+    return {
+        "captured_amount": round(captured, 2),
+        "refunded_amount": round(refunded, 2),
+        "net_captured_amount": round(net_captured, 2),
+        "deposit_amount_captured": round(deposit_captured, 2),
+        "cancellation_fee_captured": round(cancellation_fee_captured, 2),
+        "transactions": transactions,
     }
 
 
@@ -304,6 +354,7 @@ async def create_booking(input: BookingCreate):
         "approval_required": approval_required,
         "approval_expires_at": (datetime.now(timezone.utc) + timedelta(minutes=int(settings.get("booking_approval_expiry_minutes", 30)))).isoformat() if approval_required else None,
         "stripe_payment_method_id": payment_method.id,
+        **_initial_booking_payment_state(payment_method, service_data["price"], now),
         "created_at": now,
         "updated_at": now,
     }
@@ -406,7 +457,7 @@ async def confirm_payment_setup(input: PaymentSetupConfirm):
         {"$set": {"latest_setup_intent_id": setup_intent.id, "updated_at": datetime.now(timezone.utc).isoformat()}},
         upsert=True,
     )
-    return {"client_secret": setup_intent.client_secret}
+    return {"client_secret": setup_intent.client_secret, "purpose": "payment_method_setup", "charge_created": False}
 
 @api_router.post("/payments/customer-session")
 async def create_payment_customer_session(input: PaymentClientRequest):
@@ -436,7 +487,7 @@ async def create_customer_sheet_setup_intent(input: PaymentClientRequest):
     except stripe.StripeError as exc:
         logger.warning("Stripe CustomerSheet SetupIntent failed: %s", str(exc))
         raise HTTPException(status_code=400, detail="A new payment method could not be prepared.") from exc
-    return {"setup_intent_client_secret": setup_intent.client_secret}
+    return {"setup_intent_client_secret": setup_intent.client_secret, "purpose": "payment_method_setup", "charge_created": False}
 
 @api_router.post("/payments/verify")
 async def verify_payment_setup(input: PaymentVerifyRequest):
@@ -447,7 +498,7 @@ async def verify_payment_setup(input: PaymentVerifyRequest):
     )
     customer_id = (record or {}).get("stripe_customer_id")
     if not customer_id:
-        return {"verified": False, "reason": "No payment customer exists yet."}
+        return {"verified": False, "reason": "No payment customer exists yet.", "verification_only": True, "charge_created": False}
     try:
         payment_methods = stripe.Customer.list_payment_methods(customer_id, type="card", limit=10)
     except stripe.StripeError as exc:
@@ -463,12 +514,30 @@ async def verify_payment_setup(input: PaymentVerifyRequest):
             {"client_key": input.client_key},
             {"$set": {"verified": True, "stripe_payment_method_id": payment_method.id, "payment_method_summary": summary, "verified_at": now, "updated_at": now}},
         )
-        return {"verified": True, "payment_method": summary}
+        return {"verified": True, "payment_method": summary, "verified_at": now, "verification_only": True, "charge_created": False}
     await db.payment_customers.update_one(
         {"client_key": input.client_key},
         {"$set": {"verified": False, "stripe_payment_method_id": None, "payment_method_summary": None, "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
-    return {"verified": False, "reason": "No saved payment method is attached."}
+    return {"verified": False, "reason": "No saved payment method is attached.", "verification_only": True, "charge_created": False}
+
+@api_router.get("/payments/booking/{booking_id}")
+async def booking_payment_status(booking_id: str, client_key: str = Query(min_length=12, max_length=128)):
+    booking = await db.bookings.find_one(
+        {"id": booking_id, "client_key": client_key},
+        {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
+    )
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found.")
+    ledger = await _payment_ledger_summary(booking_id)
+    return {
+        "booking_id": booking_id,
+        "service_value": float(booking.get("service_value", booking.get("price", 0)) or 0),
+        "payment_status": booking.get("payment_status", "not_charged"),
+        "payment_method_verified": bool(booking.get("payment_method_verified", bool(booking.get("payment_method_summary")))),
+        "payment_method_summary": booking.get("payment_method_summary"),
+        **ledger,
+    }
 
 api_router.include_router(build_admin_router(db, SERVICES, _get_booking_settings, LONDON))
 app.include_router(api_router)
@@ -497,6 +566,9 @@ async def startup_indexes():
     await db.admin_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.admin_sessions.create_index("token_hash", unique=True)
     await db.client_profiles.create_index("client_key", unique=True)
+    await db.payment_transactions.create_index("id", unique=True, sparse=True)
+    await db.payment_transactions.create_index([("booking_id", 1), ("created_at", 1)])
+    await db.payment_transactions.create_index([("stripe_payment_intent_id", 1)], sparse=True)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

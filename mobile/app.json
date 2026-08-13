@@ -18,6 +18,13 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "color": "#D6BD7A",
+          "defaultChannel": "appointments"
+        }
+      ],
+      [
         "@stripe/stripe-react-native",
         {
           "enableGooglePay": false

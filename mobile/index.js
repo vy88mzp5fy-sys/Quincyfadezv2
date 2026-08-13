@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { registerRootComponent } from "expo";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import App from "./App";
+import ClientIdentitySync from "./src/ClientIdentitySync";
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
 
@@ -36,6 +37,7 @@ function QuincyFadezRoot() {
       publishableKey={publishableKey}
       urlScheme="quincyfadez"
     >
+      <ClientIdentitySync />
       <App />
     </StripeProvider>
   );

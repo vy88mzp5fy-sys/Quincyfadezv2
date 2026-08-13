@@ -1,16 +1,20 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import AdminWaitingListPanel from "./AdminWaitingListPanel";
+import AdminWaitingListSlotPicker from "./AdminWaitingListSlotPicker";
 
 const GOLD = "#D6BD7A";
 const GOLD_LIGHT = "#F1DDA2";
 
-export default function AdminWaitingListOverlay({ apiUrl, token, onOpenSchedule }) {
+export default function AdminWaitingListOverlay({ apiUrl, token }) {
   const [visible, setVisible] = useState(false);
+  const [slotPickerVisible, setSlotPickerVisible] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState(null);
   const [entries, setEntries] = useState([]);
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState("");
+  const [sending, setSending] = useState(false);
 
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!apiUrl || !token) {
@@ -73,8 +77,32 @@ export default function AdminWaitingListOverlay({ apiUrl, token, onOpenSchedule 
   };
 
   const findSlot = (entry) => {
+    if (!entry?.id) return;
+    setSelectedEntry(entry);
     setVisible(false);
-    onOpenSchedule?.(entry);
+    setSlotPickerVisible(true);
+  };
+
+  const sendSlotAlert = async (slot) => {
+    if (!selectedEntry?.id || sending) return;
+    setSending(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/admin/waiting-list/${selectedEntry.id}/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ service: selectedEntry.service, date: slot.date, time: slot.time }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || "Waiting-list alert could not be sent.");
+      setSlotPickerVisible(false);
+      setSelectedEntry(null);
+      await load({ quiet: true });
+      Alert.alert("Slot Alert Sent", "The client has been notified about this matching available slot.");
+    } catch (error) {
+      Alert.alert("Could Not Send Alert", error.message || "Please try again.");
+    } finally {
+      setSending(false);
+    }
   };
 
   if (!token) return null;
@@ -85,6 +113,7 @@ export default function AdminWaitingListOverlay({ apiUrl, token, onOpenSchedule 
       {entries.length > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{entries.length > 99 ? "99+" : entries.length}</Text></View> : null}
     </Pressable>
     <AdminWaitingListPanel visible={visible} enabled={enabled} entries={entries} loading={loading} busyId={busyId} onClose={() => setVisible(false)} onRefresh={() => load()} onOpenSchedule={findSlot} onRemove={remove} />
+    <AdminWaitingListSlotPicker visible={slotPickerVisible} apiUrl={apiUrl} token={token} entry={selectedEntry} sending={sending} onClose={() => { if (!sending) { setSlotPickerVisible(false); setSelectedEntry(null); } }} onSend={sendSlotAlert} />
   </>;
 }
 

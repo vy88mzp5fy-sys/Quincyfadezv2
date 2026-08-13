@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AdminScreen from "./AdminScreen";
 import PendingBookingsPanel from "./PendingBookingsPanel";
+import AdminSchedulePanel from "./AdminSchedulePanel";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
@@ -11,10 +12,12 @@ const TOKEN_KEY = "quincyfadez.adminToken";
 
 export default function AdminNotificationsShell({ onExit }) {
   const [visible, setVisible] = useState(false);
+  const [scheduleVisible, setScheduleVisible] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState("");
   const [hasAdminSession, setHasAdminSession] = useState(false);
+  const [adminToken, setAdminToken] = useState("");
   const mounted = useRef(true);
 
   const getToken = useCallback(async () => AsyncStorage.getItem(TOKEN_KEY), []);
@@ -24,6 +27,7 @@ export default function AdminNotificationsShell({ onExit }) {
     const token = await getToken();
     if (!mounted.current) return;
     setHasAdminSession(Boolean(token));
+    setAdminToken(token || "");
     if (!token) {
       setRequests([]);
       return;
@@ -36,6 +40,7 @@ export default function AdminNotificationsShell({ onExit }) {
       if (response.status === 401) {
         if (mounted.current) {
           setHasAdminSession(false);
+          setAdminToken("");
           setRequests([]);
         }
         return;
@@ -63,6 +68,13 @@ export default function AdminNotificationsShell({ onExit }) {
     await loadRequests();
   };
 
+  const openSchedule = async () => {
+    const token = await getToken();
+    if (!token) return;
+    setAdminToken(token);
+    setScheduleVisible(true);
+  };
+
   const updateRequest = async (booking, status) => {
     if (!booking?.id || actionBusy) return;
     const token = await getToken();
@@ -84,15 +96,25 @@ export default function AdminNotificationsShell({ onExit }) {
 
   return <View style={styles.shell}>
     <AdminScreen onExit={onExit} />
-    {hasAdminSession ? <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${requests.length} pending booking request${requests.length === 1 ? "" : "s"}`}
-      onPress={openRequests}
-      style={({ pressed }) => [styles.bell, requests.length > 0 && styles.bellActive, pressed && styles.pressed]}
-    >
-      <Text style={styles.bellIcon}>♢</Text>
-      {requests.length > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{requests.length > 99 ? "99+" : requests.length}</Text></View> : null}
-    </Pressable> : null}
+    {hasAdminSession ? <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open schedule diary"
+        onPress={openSchedule}
+        style={({ pressed }) => [styles.calendar, pressed && styles.pressed]}
+      >
+        <Text style={styles.calendarIcon}>▦</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${requests.length} pending booking request${requests.length === 1 ? "" : "s"}`}
+        onPress={openRequests}
+        style={({ pressed }) => [styles.bell, requests.length > 0 && styles.bellActive, pressed && styles.pressed]}
+      >
+        <Text style={styles.bellIcon}>♢</Text>
+        {requests.length > 0 ? <View style={styles.badge}><Text style={styles.badgeText}>{requests.length > 99 ? "99+" : requests.length}</Text></View> : null}
+      </Pressable>
+    </> : null}
     <PendingBookingsPanel
       visible={visible}
       bookings={requests}
@@ -102,11 +124,19 @@ export default function AdminNotificationsShell({ onExit }) {
       onRefresh={() => loadRequests()}
       onAction={updateRequest}
     />
+    <AdminSchedulePanel
+      visible={scheduleVisible}
+      token={adminToken}
+      apiUrl={API_URL}
+      onClose={() => setScheduleVisible(false)}
+    />
   </View>;
 }
 
 const styles = StyleSheet.create({
   shell:{flex:1,position:"relative"},
+  calendar:{position:"absolute",top:14,right:178,width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#343434",backgroundColor:"#0A0A0A",alignItems:"center",justifyContent:"center",zIndex:20},
+  calendarIcon:{color:GOLD_LIGHT,fontSize:17,fontWeight:"800"},
   bell:{position:"absolute",top:14,right:132,width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#343434",backgroundColor:"#0A0A0A",alignItems:"center",justifyContent:"center",zIndex:20},
   bellActive:{borderColor:"#5A4523",backgroundColor:"#171107"},
   bellIcon:{color:GOLD_LIGHT,fontSize:20,lineHeight:22,transform:[{rotate:"45deg"}]},

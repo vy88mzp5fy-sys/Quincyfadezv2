@@ -7,216 +7,72 @@ const GOLD_LIGHT = "#E7C77A";
 const BORDER = "#242424";
 const TOKEN_KEY = "quincyfadez.adminToken";
 
-function money(value) {
-  const number = Number(value || 0);
-  return `£${number.toFixed(number % 1 ? 2 : 0)}`;
+function money(value) { const number = Number(value || 0); return `£${number.toFixed(number % 1 ? 2 : 0)}`; }
+function clean(value) { return String(value || "not_charged").replaceAll("_", " ").toUpperCase(); }
+function shortId(value) { const text = String(value || ""); if (!text) return "—"; return text.length > 12 ? `${text.slice(0, 7)}…${text.slice(-4)}` : text; }
+function londonDateTime(value) { if (!value) return "—"; try { return new Date(value).toLocaleString("en-GB", { weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit", timeZone:"Europe/London" }); } catch (_) { return "—"; } }
+function londonDate(value) { if (!value) return "—"; try { return new Date(value).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric", timeZone:"Europe/London" }); } catch (_) { return "—"; } }
+function whatsappNumber(phone) { const digits=String(phone||"").replace(/\D/g,""); if(digits.startsWith("44"))return digits; if(digits.startsWith("0"))return `44${digits.slice(1)}`; return digits; }
+function DetailRow({label,value,strong=false}) { return <View style={styles.detailRow}><Text style={styles.detailLabel}>{label}</Text><Text style={[styles.detailValue,strong&&styles.detailValueStrong]}>{value}</Text></View>; }
+function ContactButton({label,icon,disabled,onPress}) { return <Pressable disabled={disabled} onPress={onPress} style={({pressed})=>[styles.contactButton,disabled&&styles.contactDisabled,pressed&&!disabled&&styles.contactPressed]}><Text style={styles.contactIcon}>{icon}</Text><Text style={styles.contactText}>{label}</Text></Pressable>; }
+
+function AppointmentPrep({ bookingNote, privateNote, loading }) {
+  const hasBooking = Boolean(String(bookingNote || "").trim());
+  const hasPrivate = Boolean(String(privateNote || "").trim());
+  if (!hasBooking && !hasPrivate && !loading) return null;
+  return <View style={styles.prepCard}>
+    <View style={styles.prepHeader}><View><Text style={styles.eyebrow}>APPOINTMENT PREP</Text><Text style={styles.prepTitle}>What Matters For This Cut</Text></View><View style={styles.prepPill}><Text style={styles.prepPillText}>PRIVATE ADMIN VIEW</Text></View></View>
+    <Text style={styles.prepIntro}>Booking notes apply to this appointment only. Private client notes stay with the client for future visits.</Text>
+    {hasBooking ? <View style={styles.bookingNoteCard}><Text style={styles.bookingNoteLabel}>BOOKING NOTE · THIS APPOINTMENT</Text><Text style={styles.bookingNoteText}>{String(bookingNote).trim()}</Text></View> : null}
+    {loading ? <View style={styles.noteLoading}><ActivityIndicator color={GOLD_LIGHT} size="small"/><Text style={styles.noteLoadingText}>CHECKING PRIVATE CLIENT NOTES…</Text></View> : hasPrivate ? <View style={styles.privateNoteCard}><Text style={styles.privateNoteLabel}>PRIVATE CLIENT NOTE · ONGOING</Text><Text style={styles.privateNoteText}>{String(privateNote).trim()}</Text></View> : <View style={styles.noPrivateNote}><Text style={styles.noPrivateNoteText}>No ongoing private client note saved.</Text></View>}
+  </View>;
 }
 
-function clean(value) {
-  return String(value || "not_charged").replaceAll("_", " ").toUpperCase();
-}
-
-function shortId(value) {
-  const text = String(value || "");
-  if (!text) return "—";
-  return text.length > 12 ? `${text.slice(0, 7)}…${text.slice(-4)}` : text;
-}
-
-function londonDateTime(value) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "Europe/London",
-    });
-  } catch (_) {
-    return "—";
-  }
-}
-
-function londonDate(value) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
-  } catch (_) {
-    return "—";
-  }
-}
-
-function whatsappNumber(phone) {
-  const digits = String(phone || "").replace(/\D/g, "");
-  if (digits.startsWith("44")) return digits;
-  if (digits.startsWith("0")) return `44${digits.slice(1)}`;
-  return digits;
-}
-
-function DetailRow({ label, value, strong = false }) {
-  return <View style={styles.detailRow}><Text style={styles.detailLabel}>{label}</Text><Text style={[styles.detailValue, strong && styles.detailValueStrong]}>{value}</Text></View>;
-}
-
-function ContactButton({ label, icon, disabled, onPress }) {
-  return <Pressable disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.contactButton, disabled && styles.contactDisabled, pressed && !disabled && styles.contactPressed]}><Text style={styles.contactIcon}>{icon}</Text><Text style={styles.contactText}>{label}</Text></Pressable>;
-}
-
-function ClientProfileSnapshot({ data, loading, error, onRefresh }) {
-  if (loading) return <View style={styles.clientState}><ActivityIndicator color={GOLD_LIGHT} /><Text style={styles.clientStateText}>OPENING CLIENT RECORD…</Text></View>;
-  if (error) return <View style={styles.clientError}><Text style={styles.errorTitle}>Client Record Unavailable</Text><Text style={styles.errorText}>{error}</Text><Pressable onPress={onRefresh} style={styles.retryButton}><Text style={styles.retryText}>TRY AGAIN</Text></Pressable></View>;
-  if (!data) return null;
-
-  const client = data.client || {};
-  const history = data.history || [];
-  const upcoming = data.upcoming || [];
-  const tags = client.tags || [];
-  const noShows = Number(client.no_show_count || 0);
-  const cancelled = Number(client.cancelled_count || 0);
-  const completed = Number(client.completed_count || 0);
-  const reliability = noShows >= 2 ? "NEEDS ATTENTION" : noShows === 1 || cancelled >= 3 ? "WATCH" : completed >= 3 ? "RELIABLE" : "BUILDING HISTORY";
-
+function ClientProfileSnapshot({data,loading,error,onRefresh}) {
+  if(loading)return <View style={styles.clientState}><ActivityIndicator color={GOLD_LIGHT}/><Text style={styles.clientStateText}>OPENING CLIENT RECORD…</Text></View>;
+  if(error)return <View style={styles.clientError}><Text style={styles.errorTitle}>Client Record Unavailable</Text><Text style={styles.errorText}>{error}</Text><Pressable onPress={onRefresh} style={styles.retryButton}><Text style={styles.retryText}>TRY AGAIN</Text></Pressable></View>;
+  if(!data)return null;
+  const client=data.client||{},history=data.history||[],upcoming=data.upcoming||[],tags=client.tags||[];
+  const noShows=Number(client.no_show_count||0),cancelled=Number(client.cancelled_count||0),completed=Number(client.completed_count||0);
+  const reliability=noShows>=2?"NEEDS ATTENTION":noShows===1||cancelled>=3?"WATCH":completed>=3?"RELIABLE":"BUILDING HISTORY";
   return <View style={styles.clientProfile}>
-    <View style={styles.clientProfileHeader}><View><Text style={styles.eyebrow}>FULL CLIENT RECORD</Text><Text style={styles.clientProfileName}>{client.name || "Client"}</Text></View><Pressable onPress={onRefresh} style={styles.refresh}><Text style={styles.refreshText}>REFRESH</Text></Pressable></View>
+    <View style={styles.clientProfileHeader}><View><Text style={styles.eyebrow}>FULL CLIENT RECORD</Text><Text style={styles.clientProfileName}>{client.name||"Client"}</Text></View><Pressable onPress={onRefresh} style={styles.refresh}><Text style={styles.refreshText}>REFRESH</Text></Pressable></View>
     <View style={styles.clientReliability}><View><Text style={styles.clientLabel}>RELIABILITY</Text><Text style={styles.clientReliabilityValue}>{reliability}</Text></View><View style={styles.clientReliabilityStats}><Text style={styles.clientStat}>{completed} Completed</Text><Text style={styles.clientStat}>{noShows} No-Shows</Text><Text style={styles.clientStat}>{cancelled} Cancelled</Text></View></View>
-    <View style={styles.clientFacts}>
-      <DetailRow label="COMPLETED VALUE" value={money(client.total_spend)} />
-      <DetailRow label="LAST VISIT" value={londonDate(client.last_visit)} />
-      <DetailRow label="LAST SERVICE" value={client.last_service || "—"} />
-      <DetailRow label="NEXT VISIT" value={client.next_booking ? londonDateTime(client.next_booking.start_at) : "None Booked"} />
-    </View>
-    <View style={styles.clientSection}><Text style={styles.clientLabel}>PRIVATE NOTES</Text><Text style={styles.clientNotes}>{client.notes?.trim() || "No private client notes saved yet."}</Text></View>
-    <View style={styles.clientSection}><Text style={styles.clientLabel}>CLIENT TAGS</Text>{tags.length ? <View style={styles.tagWrap}>{tags.map((tag) => <View key={tag} style={styles.tag}><Text style={styles.tagText}>{tag}</Text></View>)}</View> : <Text style={styles.clientNotes}>No tags saved.</Text>}</View>
-    <View style={styles.clientSection}><View style={styles.historyHeader}><Text style={styles.clientLabel}>RECENT BOOKING HISTORY</Text><Text style={styles.historyCount}>{history.length}</Text></View>{history.length ? history.slice(0, 5).map((item) => <View key={item.id} style={styles.historyRow}><View style={styles.historyCopy}><Text style={styles.historyService}>{item.service || "Appointment"}</Text><Text style={styles.historyMeta}>{londonDateTime(item.start_at)} · {clean(item.status)}</Text></View><Text style={styles.historyValue}>{money(item.price)}</Text></View>) : <Text style={styles.clientNotes}>No previous appointments.</Text>}</View>
-    {upcoming.length ? <Text style={styles.upcomingNote}>{upcoming.length} UPCOMING APPOINTMENT{upcoming.length === 1 ? "" : "S"} ON THIS CLIENT RECORD</Text> : null}
+    <View style={styles.clientFacts}><DetailRow label="COMPLETED VALUE" value={money(client.total_spend)}/><DetailRow label="LAST VISIT" value={londonDate(client.last_visit)}/><DetailRow label="LAST SERVICE" value={client.last_service||"—"}/><DetailRow label="NEXT VISIT" value={client.next_booking?londonDateTime(client.next_booking.start_at):"None Booked"}/></View>
+    <View style={styles.clientSection}><Text style={styles.clientLabel}>PRIVATE CLIENT NOTES · ONGOING</Text><Text style={styles.clientNotes}>{client.notes?.trim()||"No private client notes saved yet."}</Text></View>
+    <View style={styles.clientSection}><Text style={styles.clientLabel}>CLIENT TAGS</Text>{tags.length?<View style={styles.tagWrap}>{tags.map(tag=><View key={tag} style={styles.tag}><Text style={styles.tagText}>{tag}</Text></View>)}</View>:<Text style={styles.clientNotes}>No tags saved.</Text>}</View>
+    <View style={styles.clientSection}><View style={styles.historyHeader}><Text style={styles.clientLabel}>RECENT BOOKING HISTORY</Text><Text style={styles.historyCount}>{history.length}</Text></View>{history.length?history.slice(0,5).map(item=><View key={item.id} style={styles.historyRow}><View style={styles.historyCopy}><Text style={styles.historyService}>{item.service||"Appointment"}</Text><Text style={styles.historyMeta}>{londonDateTime(item.start_at)} · {clean(item.status)}</Text></View><Text style={styles.historyValue}>{money(item.price)}</Text></View>):<Text style={styles.clientNotes}>No previous appointments.</Text>}</View>
+    {upcoming.length?<Text style={styles.upcomingNote}>{upcoming.length} UPCOMING APPOINTMENT{upcoming.length===1?"":"S"} ON THIS CLIENT RECORD</Text>:null}
   </View>;
 }
 
-export default function AdminAppointmentDetails({ booking, onClose }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [payment, setPayment] = useState(null);
-  const [clientOpen, setClientOpen] = useState(false);
-  const [clientLoading, setClientLoading] = useState(false);
-  const [clientError, setClientError] = useState("");
-  const [clientData, setClientData] = useState(null);
-  const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
-
-  const phone = booking?.customer_phone || booking?.phone || "";
-  const email = booking?.customer_email || booking?.email || "";
-  const openUrl = (url) => Linking.openURL(url).catch(() => {});
-
-  const load = async () => {
-    if (!booking?.id || !booking?.client_key || !API_URL) return;
-    setLoading(true);
-    setError("");
-    try {
-      const response = await fetch(`${API_URL}/api/payments/booking/${encodeURIComponent(booking.id)}?client_key=${encodeURIComponent(booking.client_key)}`);
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || "Payment details could not be loaded.");
-      setPayment(data);
-    } catch (err) {
-      setError(err.message || "Payment details could not be loaded.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadClient = async () => {
-    if (!booking?.client_key || !API_URL || clientLoading) return;
-    setClientLoading(true);
-    setClientError("");
-    try {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      if (!token) throw new Error("Admin session is unavailable. Sign in again to view the full client record.");
-      const response = await fetch(`${API_URL}/api/admin/clients/${encodeURIComponent(booking.client_key)}`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.detail || "Client record could not be loaded.");
-      setClientData(data);
-    } catch (err) {
-      setClientData(null);
-      setClientError(err.message || "Client record could not be loaded.");
-    } finally {
-      setClientLoading(false);
-    }
-  };
-
-  const toggleClient = async () => {
-    const next = !clientOpen;
-    setClientOpen(next);
-    if (next && !clientData) await loadClient();
-  };
-
-  useEffect(() => { setClientOpen(false); setClientData(null); setClientError(""); load(); }, [booking?.id]);
-
-  const transactions = payment?.transactions || [];
-  const plan = payment?.payment_plan || booking?.payment_plan || {};
-  const deposit = plan?.deposit || {};
-  const cancellationFee = plan?.cancellation_fee || {};
-
+export default function AdminAppointmentDetails({booking,onClose}) {
+  const [loading,setLoading]=useState(true),[error,setError]=useState(""),[payment,setPayment]=useState(null);
+  const [clientOpen,setClientOpen]=useState(false),[clientLoading,setClientLoading]=useState(false),[clientError,setClientError]=useState(""),[clientData,setClientData]=useState(null);
+  const API_URL=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
+  const phone=booking?.customer_phone||booking?.phone||"",email=booking?.customer_email||booking?.email||"";
+  const openUrl=url=>Linking.openURL(url).catch(()=>{});
+  const load=async()=>{if(!booking?.id||!booking?.client_key||!API_URL)return;setLoading(true);setError("");try{const response=await fetch(`${API_URL}/api/payments/booking/${encodeURIComponent(booking.id)}?client_key=${encodeURIComponent(booking.client_key)}`),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"Payment details could not be loaded.");setPayment(data);}catch(err){setError(err.message||"Payment details could not be loaded.");}finally{setLoading(false);}};
+  const loadClient=async()=>{if(!booking?.client_key||!API_URL||clientLoading)return;setClientLoading(true);setClientError("");try{const token=await AsyncStorage.getItem(TOKEN_KEY);if(!token)throw new Error("Admin session is unavailable. Sign in again to view the full client record.");const response=await fetch(`${API_URL}/api/admin/clients/${encodeURIComponent(booking.client_key)}`,{headers:{Authorization:`Bearer ${token}`}}),data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.detail||"Client record could not be loaded.");setClientData(data);}catch(err){setClientData(null);setClientError(err.message||"Client record could not be loaded.");}finally{setClientLoading(false);}};
+  const toggleClient=async()=>{const next=!clientOpen;setClientOpen(next);if(next&&!clientData)await loadClient();};
+  useEffect(()=>{setClientOpen(false);setClientData(null);setClientError("");load();loadClient();},[booking?.id]);
+  const transactions=payment?.transactions||[],plan=payment?.payment_plan||booking?.payment_plan||{},deposit=plan?.deposit||{},cancellationFee=plan?.cancellation_fee||{};
+  const privateNote=clientData?.client?.notes||"";
   return <View style={styles.card}>
-    <View style={styles.header}>
-      <View style={styles.headerCopy}>
-        <Text style={styles.eyebrow}>APPOINTMENT DETAILS</Text>
-        <Text style={styles.title}>{booking?.customer_name || "Client"}</Text>
-        <Text style={styles.subtitle}>{booking?.service || "Appointment"} · {londonDateTime(booking?.start_at)}</Text>
-      </View>
-      <Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>CLOSE</Text></Pressable>
-    </View>
-
-    <View style={styles.contactCard}>
-      <View style={styles.contactHead}><View><Text style={styles.eyebrow}>QUICK CLIENT ACCESS</Text><Text style={styles.contactTitle}>Contact Or Open Their Record</Text></View></View>
-      <View style={styles.contactGrid}>
-        <ContactButton label="CALL" icon="☎" disabled={!phone} onPress={() => openUrl(`tel:${phone}`)} />
-        <ContactButton label="MESSAGE" icon="✉" disabled={!phone} onPress={() => openUrl(`sms:${phone}`)} />
-        <ContactButton label="WHATSAPP" icon="◉" disabled={!phone} onPress={() => openUrl(`https://wa.me/${whatsappNumber(phone)}`)} />
-        <ContactButton label="EMAIL" icon="@" disabled={!email} onPress={() => openUrl(`mailto:${email}`)} />
-      </View>
-      <Pressable disabled={!booking?.client_key} onPress={toggleClient} style={[styles.profileButton, !booking?.client_key && styles.contactDisabled]}><View><Text style={styles.profileButtonLabel}>CLIENT PROFILE</Text><Text style={styles.profileButtonMeta}>Notes · Tags · Reliability · Booking History</Text></View><Text style={styles.profileArrow}>{clientOpen ? "⌃" : "›"}</Text></Pressable>
-      {!phone && !email ? <Text style={styles.contactEmpty}>No client contact details were returned with this booking.</Text> : <Text style={styles.contactMeta}>{phone || "No Phone"}{email ? ` · ${email}` : ""}</Text>}
-      {clientOpen ? <ClientProfileSnapshot data={clientData} loading={clientLoading} error={clientError} onRefresh={loadClient} /> : null}
-    </View>
-
-    <View style={styles.bookingBlock}>
-      <DetailRow label="BOOKING STATUS" value={clean(booking?.status)} strong />
-      <DetailRow label="BOOKING REFERENCE" value={shortId(booking?.id)} />
-      <DetailRow label="SERVICE VALUE" value={money(payment?.service_value ?? booking?.price)} />
-      <DetailRow label="DURATION" value={`${booking?.duration_minutes || 0} min`} />
-      {booking?.notes ? <DetailRow label="CLIENT NOTE" value={booking.notes} /> : null}
-    </View>
-
-    <View style={styles.paymentHeader}><Text style={styles.eyebrow}>PAYMENT BREAKDOWN</Text><Pressable disabled={loading} onPress={load} style={styles.refresh}><Text style={styles.refreshText}>{loading ? "…" : "REFRESH"}</Text></Pressable></View>
-    {loading ? <View style={styles.state}><ActivityIndicator color={GOLD_LIGHT} /><Text style={styles.stateText}>CHECKING PAYMENT STATE…</Text></View> : null}
-    {!loading && error ? <View style={styles.error}><Text style={styles.errorTitle}>Payment Details Unavailable</Text><Text style={styles.errorText}>{error}</Text></View> : null}
-    {!loading && !error && payment ? <>
-      <View style={styles.paymentStatus}><Text style={styles.paymentStatusLabel}>OVERALL PAYMENT STATUS</Text><Text style={styles.paymentStatusValue}>{clean(payment.payment_status)}</Text><Text style={styles.paymentStatusMeta}>{payment.payment_method_verified ? "Card verified" : "No verified card recorded"}</Text></View>
-      <View style={styles.moneyGrid}>
-        <View style={styles.moneyTile}><Text style={styles.moneyLabel}>CAPTURED</Text><Text style={styles.moneyValue}>{money(payment.captured_amount)}</Text></View>
-        <View style={styles.moneyTile}><Text style={styles.moneyLabel}>REFUNDED</Text><Text style={styles.moneyValue}>{money(payment.refunded_amount)}</Text></View>
-        <View style={styles.moneyTile}><Text style={styles.moneyLabel}>NET CAPTURED</Text><Text style={styles.moneyValue}>{money(payment.net_captured_amount)}</Text></View>
-      </View>
-
-      <View style={styles.policyCard}>
-        <Text style={styles.policyTitle}>Payment Policy For This Booking</Text>
-        <DetailRow label="DEPOSIT" value={deposit?.configured ? `${money(deposit.requested_amount)} · ${deposit.chargeable ? "LIVE" : "CONFIGURED ONLY"}` : "Off"} />
-        <DetailRow label="DUE AT BOOKING" value={money(deposit?.amount_due_now)} />
-        <DetailRow label="CANCELLATION FEE" value={cancellationFee?.configured ? `${money(cancellationFee.requested_amount)} · ${cancellationFee.chargeable ? "LIVE" : "CONFIGURED ONLY"}` : "Off"} />
-      </View>
-
-      <View style={styles.transactions}>
-        <View style={styles.transactionsHeader}><Text style={styles.policyTitle}>Transaction History</Text><Text style={styles.count}>{transactions.length}</Text></View>
-        {transactions.length ? transactions.map((item) => <View key={item.id || `${item.created_at}-${item.kind}`} style={styles.transaction}>
-          <View style={styles.transactionTop}><Text style={styles.transactionTitle}>{clean(item.kind)}</Text><Text style={styles.transactionAmount}>{item.kind === "refund" ? "−" : "+"}{money(item.amount)}</Text></View>
-          <Text style={styles.transactionMeta}>{clean(item.status)} · {londonDateTime(item.created_at)}</Text>
-          {item.stripe_payment_intent_id ? <Text style={styles.transactionRef}>Stripe {shortId(item.stripe_payment_intent_id)}</Text> : null}
-        </View>) : <Text style={styles.empty}>No real payment transactions exist for this booking yet.</Text>}
-      </View>
-    </> : null}
+    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.eyebrow}>APPOINTMENT DETAILS</Text><Text style={styles.title}>{booking?.customer_name||"Client"}</Text><Text style={styles.subtitle}>{booking?.service||"Appointment"} · {londonDateTime(booking?.start_at)}</Text></View><Pressable onPress={onClose} style={styles.close}><Text style={styles.closeText}>CLOSE</Text></Pressable></View>
+    <AppointmentPrep bookingNote={booking?.notes} privateNote={privateNote} loading={clientLoading}/>
+    <View style={styles.contactCard}><View style={styles.contactHead}><View><Text style={styles.eyebrow}>QUICK CLIENT ACCESS</Text><Text style={styles.contactTitle}>Contact Or Open Their Record</Text></View></View><View style={styles.contactGrid}><ContactButton label="CALL" icon="☎" disabled={!phone} onPress={()=>openUrl(`tel:${phone}`)}/><ContactButton label="MESSAGE" icon="✉" disabled={!phone} onPress={()=>openUrl(`sms:${phone}`)}/><ContactButton label="WHATSAPP" icon="◉" disabled={!phone} onPress={()=>openUrl(`https://wa.me/${whatsappNumber(phone)}`)}/><ContactButton label="EMAIL" icon="@" disabled={!email} onPress={()=>openUrl(`mailto:${email}`)}/></View><Pressable disabled={!booking?.client_key} onPress={toggleClient} style={[styles.profileButton,!booking?.client_key&&styles.contactDisabled]}><View><Text style={styles.profileButtonLabel}>CLIENT PROFILE</Text><Text style={styles.profileButtonMeta}>Notes · Tags · Reliability · Booking History</Text></View><Text style={styles.profileArrow}>{clientOpen?"⌃":"›"}</Text></Pressable>{!phone&&!email?<Text style={styles.contactEmpty}>No client contact details were returned with this booking.</Text>:<Text style={styles.contactMeta}>{phone||"No Phone"}{email?` · ${email}`:""}</Text>}{clientOpen?<ClientProfileSnapshot data={clientData} loading={clientLoading} error={clientError} onRefresh={loadClient}/>:null}</View>
+    <View style={styles.bookingBlock}><DetailRow label="BOOKING STATUS" value={clean(booking?.status)} strong/><DetailRow label="BOOKING REFERENCE" value={shortId(booking?.id)}/><DetailRow label="SERVICE VALUE" value={money(payment?.service_value??booking?.price)}/><DetailRow label="DURATION" value={`${booking?.duration_minutes||0} min`}/></View>
+    <View style={styles.paymentHeader}><Text style={styles.eyebrow}>PAYMENT BREAKDOWN</Text><Pressable disabled={loading} onPress={load} style={styles.refresh}><Text style={styles.refreshText}>{loading?"…":"REFRESH"}</Text></Pressable></View>
+    {loading?<View style={styles.state}><ActivityIndicator color={GOLD_LIGHT}/><Text style={styles.stateText}>CHECKING PAYMENT STATE…</Text></View>:null}
+    {!loading&&error?<View style={styles.error}><Text style={styles.errorTitle}>Payment Details Unavailable</Text><Text style={styles.errorText}>{error}</Text></View>:null}
+    {!loading&&!error&&payment?<><View style={styles.paymentStatus}><Text style={styles.paymentStatusLabel}>OVERALL PAYMENT STATUS</Text><Text style={styles.paymentStatusValue}>{clean(payment.payment_status)}</Text><Text style={styles.paymentStatusMeta}>{payment.payment_method_verified?"Card verified":"No verified card recorded"}</Text></View><View style={styles.moneyGrid}><View style={styles.moneyTile}><Text style={styles.moneyLabel}>CAPTURED</Text><Text style={styles.moneyValue}>{money(payment.captured_amount)}</Text></View><View style={styles.moneyTile}><Text style={styles.moneyLabel}>REFUNDED</Text><Text style={styles.moneyValue}>{money(payment.refunded_amount)}</Text></View><View style={styles.moneyTile}><Text style={styles.moneyLabel}>NET CAPTURED</Text><Text style={styles.moneyValue}>{money(payment.net_captured_amount)}</Text></View></View><View style={styles.policyCard}><Text style={styles.policyTitle}>Payment Policy For This Booking</Text><DetailRow label="DEPOSIT" value={deposit?.configured?`${money(deposit.requested_amount)} · ${deposit.chargeable?"LIVE":"CONFIGURED ONLY"}`:"Off"}/><DetailRow label="DUE AT BOOKING" value={money(deposit?.amount_due_now)}/><DetailRow label="CANCELLATION FEE" value={cancellationFee?.configured?`${money(cancellationFee.requested_amount)} · ${cancellationFee.chargeable?"LIVE":"CONFIGURED ONLY"}`:"Off"}/></View><View style={styles.transactions}><View style={styles.transactionsHeader}><Text style={styles.policyTitle}>Transaction History</Text><Text style={styles.count}>{transactions.length}</Text></View>{transactions.length?transactions.map(item=><View key={item.id||`${item.created_at}-${item.kind}`} style={styles.transaction}><View style={styles.transactionTop}><Text style={styles.transactionTitle}>{clean(item.kind)}</Text><Text style={styles.transactionAmount}>{item.kind==="refund"?"−":"+"}{money(item.amount)}</Text></View><Text style={styles.transactionMeta}>{clean(item.status)} · {londonDateTime(item.created_at)}</Text>{item.stripe_payment_intent_id?<Text style={styles.transactionRef}>Stripe {shortId(item.stripe_payment_intent_id)}</Text>:null}</View>):<Text style={styles.empty}>No real payment transactions exist for this booking yet.</Text>}</View></>:null}
   </View>;
 }
 
-const styles = StyleSheet.create({
+const styles=StyleSheet.create({
   card:{marginTop:10,borderRadius:16,borderWidth:1,borderColor:"#40331F",backgroundColor:"#0E0B07",padding:14},header:{flexDirection:"row",alignItems:"flex-start",gap:10},headerCopy:{flex:1},eyebrow:{color:GOLD,fontSize:6.2,letterSpacing:1.15,fontWeight:"900"},title:{color:"#F1ECE4",fontSize:16,fontWeight:"800",marginTop:5},subtitle:{color:"#8F8372",fontSize:7.8,lineHeight:12,marginTop:4},close:{borderRadius:10,borderWidth:1,borderColor:"#40331F",paddingHorizontal:8,paddingVertical:6},closeText:{color:GOLD_LIGHT,fontSize:5.8,letterSpacing:.7,fontWeight:"900"},
+  prepCard:{marginTop:13,borderRadius:14,borderWidth:1,borderColor:"#4A3A22",backgroundColor:"#0D0A06",padding:12},prepHeader:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:10},prepTitle:{color:"#F0E3CA",fontSize:13,fontWeight:"800",marginTop:4},prepPill:{borderRadius:9,borderWidth:1,borderColor:"#42351F",backgroundColor:"#151006",paddingHorizontal:7,paddingVertical:5},prepPillText:{color:"#9D8352",fontSize:5,letterSpacing:.55,fontWeight:"900"},prepIntro:{color:"#786E5E",fontSize:6.8,lineHeight:11,marginTop:8},bookingNoteCard:{marginTop:10,borderRadius:11,borderWidth:1,borderColor:"#5A4523",backgroundColor:"#171107",padding:10},bookingNoteLabel:{color:GOLD_LIGHT,fontSize:5.6,letterSpacing:.7,fontWeight:"900"},bookingNoteText:{color:"#E8D9B9",fontSize:8.2,lineHeight:13,marginTop:6},privateNoteCard:{marginTop:8,borderRadius:11,borderWidth:1,borderColor:"#353027",backgroundColor:"#0E0D0A",padding:10},privateNoteLabel:{color:"#A69A84",fontSize:5.6,letterSpacing:.7,fontWeight:"900"},privateNoteText:{color:"#C9C2B6",fontSize:8.2,lineHeight:13,marginTop:6},noteLoading:{minHeight:44,marginTop:8,borderRadius:10,borderWidth:1,borderColor:"#2B271F",flexDirection:"row",alignItems:"center",justifyContent:"center",gap:7},noteLoadingText:{color:"#776A53",fontSize:5.4,letterSpacing:.6,fontWeight:"900"},noPrivateNote:{marginTop:8,paddingVertical:7},noPrivateNoteText:{color:"#625D55",fontSize:6.5},
   contactCard:{marginTop:13,borderRadius:13,borderWidth:1,borderColor:"#2E291F",backgroundColor:"#0A0907",padding:11},contactHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},contactTitle:{color:"#E9E2D6",fontSize:11,fontWeight:"800",marginTop:4},contactGrid:{flexDirection:"row",gap:6,marginTop:10},contactButton:{flex:1,minHeight:48,borderRadius:11,borderWidth:1,borderColor:"#3D321F",backgroundColor:"#120F09",alignItems:"center",justifyContent:"center"},contactDisabled:{opacity:.28},contactPressed:{opacity:.72},contactIcon:{color:GOLD_LIGHT,fontSize:13,fontWeight:"900"},contactText:{color:"#B59B69",fontSize:5.2,letterSpacing:.45,fontWeight:"900",marginTop:4},contactMeta:{color:"#716957",fontSize:6.5,lineHeight:10,marginTop:8},contactEmpty:{color:"#665F54",fontSize:6.8,lineHeight:11,marginTop:8},profileButton:{minHeight:52,borderRadius:11,borderWidth:1,borderColor:"#4A3B22",backgroundColor:"#151006",marginTop:8,paddingHorizontal:11,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},profileButtonLabel:{color:GOLD_LIGHT,fontSize:6.5,letterSpacing:.8,fontWeight:"900"},profileButtonMeta:{color:"#75684F",fontSize:6.5,marginTop:4},profileArrow:{color:GOLD_LIGHT,fontSize:18,fontWeight:"800"},
   clientProfile:{marginTop:10,borderRadius:12,borderWidth:1,borderColor:"#3B3120",backgroundColor:"#090807",padding:11},clientProfileHeader:{flexDirection:"row",alignItems:"flex-start",justifyContent:"space-between",gap:10},clientProfileName:{color:"#F0E7D8",fontSize:14,fontWeight:"800",marginTop:5},clientState:{minHeight:90,alignItems:"center",justifyContent:"center",gap:8},clientStateText:{color:"#77694F",fontSize:5.8,letterSpacing:.8,fontWeight:"900"},clientError:{marginTop:10,borderRadius:11,borderWidth:1,borderColor:"#51302A",backgroundColor:"#120B0A",padding:10},retryButton:{alignSelf:"flex-start",borderRadius:8,borderWidth:1,borderColor:"#5A3B33",paddingHorizontal:8,paddingVertical:6,marginTop:8},retryText:{color:"#D9988C",fontSize:5.5,letterSpacing:.7,fontWeight:"900"},clientReliability:{marginTop:10,borderRadius:11,borderWidth:1,borderColor:"#29251D",backgroundColor:"#0D0B08",padding:10,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},clientLabel:{color:"#806D4C",fontSize:5.6,letterSpacing:.8,fontWeight:"900"},clientReliabilityValue:{color:"#E8D9BA",fontSize:10,fontWeight:"900",marginTop:4},clientReliabilityStats:{alignItems:"flex-end",gap:2},clientStat:{color:"#72695B",fontSize:6},clientFacts:{marginTop:8,borderRadius:11,borderWidth:1,borderColor:BORDER,overflow:"hidden"},clientSection:{marginTop:9,borderRadius:11,borderWidth:1,borderColor:"#25221C",backgroundColor:"#0B0A08",padding:10},clientNotes:{color:"#9B9488",fontSize:7.2,lineHeight:12,marginTop:6},tagWrap:{flexDirection:"row",flexWrap:"wrap",gap:5,marginTop:7},tag:{borderRadius:10,borderWidth:1,borderColor:"#534020",backgroundColor:"#171107",paddingHorizontal:7,paddingVertical:5},tagText:{color:GOLD_LIGHT,fontSize:5.8,fontWeight:"800"},historyHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},historyCount:{color:GOLD_LIGHT,fontSize:6.5,fontWeight:"900"},historyRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:8,paddingTop:8,marginTop:7,borderTopWidth:1,borderTopColor:"#1D1B17"},historyCopy:{flex:1},historyService:{color:"#DAD4C9",fontSize:7.8,fontWeight:"800"},historyMeta:{color:"#68635A",fontSize:6,marginTop:3},historyValue:{color:"#BCA77A",fontSize:7.5,fontWeight:"800"},upcomingNote:{color:"#75664D",fontSize:5.6,letterSpacing:.7,fontWeight:"900",marginTop:9,textAlign:"center"},
   bookingBlock:{marginTop:13,borderRadius:13,borderWidth:1,borderColor:BORDER,backgroundColor:"#090909",overflow:"hidden"},detailRow:{minHeight:42,paddingHorizontal:11,paddingVertical:9,borderBottomWidth:1,borderBottomColor:"#1B1B1B",flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:10},detailLabel:{color:"#73654C",fontSize:5.8,letterSpacing:.7,fontWeight:"900"},detailValue:{flex:1,color:"#9D9A93",fontSize:7.3,textAlign:"right"},detailValueStrong:{color:"#E7D7B8",fontWeight:"800"},paymentHeader:{marginTop:14,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},refresh:{borderRadius:9,borderWidth:1,borderColor:"#3A3020",paddingHorizontal:8,paddingVertical:6},refreshText:{color:GOLD_LIGHT,fontSize:5.5,letterSpacing:.7,fontWeight:"900"},state:{minHeight:70,alignItems:"center",justifyContent:"center",gap:8},stateText:{color:"#7B6C50",fontSize:5.8,letterSpacing:.7,fontWeight:"900"},error:{marginTop:10,borderRadius:12,borderWidth:1,borderColor:"#51302A",backgroundColor:"#120B0A",padding:11},errorTitle:{color:"#D9988C",fontSize:8.5,fontWeight:"800"},errorText:{color:"#9D716A",fontSize:7,lineHeight:11,marginTop:4},paymentStatus:{marginTop:10,borderRadius:13,borderWidth:1,borderColor:"#315342",backgroundColor:"#09110D",padding:12},paymentStatusLabel:{color:"#688F79",fontSize:5.6,letterSpacing:.7,fontWeight:"900"},paymentStatusValue:{color:"#91D1AD",fontSize:12,fontWeight:"900",marginTop:5},paymentStatusMeta:{color:"#678170",fontSize:6.8,marginTop:4},moneyGrid:{flexDirection:"row",gap:6,marginTop:8},moneyTile:{flex:1,minHeight:64,borderRadius:12,borderWidth:1,borderColor:"#28231B",backgroundColor:"#090807",padding:9},moneyLabel:{color:"#75664D",fontSize:5.2,letterSpacing:.6,fontWeight:"900"},moneyValue:{color:"#F0E6D7",fontSize:13,fontWeight:"800",marginTop:8},policyCard:{marginTop:9,borderRadius:13,borderWidth:1,borderColor:BORDER,backgroundColor:"#090909",overflow:"hidden"},policyTitle:{color:"#E9E2D6",fontSize:9,fontWeight:"800",padding:11,paddingBottom:4},transactions:{marginTop:9,borderRadius:13,borderWidth:1,borderColor:BORDER,backgroundColor:"#090909",padding:11},transactionsHeader:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},count:{color:GOLD_LIGHT,fontSize:7,fontWeight:"900"},transaction:{marginTop:8,paddingTop:8,borderTopWidth:1,borderTopColor:"#1E1E1E"},transactionTop:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},transactionTitle:{color:"#CFC8BC",fontSize:7.2,fontWeight:"800"},transactionAmount:{color:"#91D1AD",fontSize:8.5,fontWeight:"900"},transactionMeta:{color:"#666",fontSize:6.2,marginTop:4},transactionRef:{color:"#5F5544",fontSize:5.5,marginTop:4},empty:{color:"#777",fontSize:7.4,lineHeight:12,paddingVertical:12,textAlign:"center"}

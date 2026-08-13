@@ -197,7 +197,7 @@ def build_admin_router(db, services, get_booking_settings, london):
         new_clients = 0
         for client_key in set(client_keys):
             first = await db.bookings.find_one(
-                {"client_key": client_key, "status": {"$nin": ["cancelled", "expired"]}},
+                {"client_key": client_key, "status": {"$in": ["confirmed", "completed", "no_show"]}},
                 {"_id": 0, "start_at_utc": 1},
                 sort=[("start_at_utc", 1)],
             )
@@ -251,7 +251,7 @@ def build_admin_router(db, services, get_booking_settings, london):
         completed = [b for b in bookings if b.get("status") == "completed"]
         cancelled = [b for b in bookings if b.get("status") == "cancelled"]
         no_shows = [b for b in bookings if b.get("status") == "no_show"]
-        active = [b for b in bookings if b.get("status") in {"pending", "confirmed", "completed", "no_show"}]
+        active = [b for b in bookings if b.get("status") in {"confirmed", "completed", "no_show"}]
         revenue = sum(float(b.get("price") or 0) for b in completed)
         completed_minutes = sum(int(b.get("duration_minutes") or 0) for b in completed)
         avg_booking = round(revenue / len(completed), 2) if completed else 0
@@ -276,7 +276,7 @@ def build_admin_router(db, services, get_booking_settings, london):
             if not client_key or client_key in first_visit_keys:
                 continue
             first = await db.bookings.find_one(
-                {"client_key": client_key, "status": {"$nin": ["cancelled", "expired"]}},
+                {"client_key": client_key, "status": {"$in": ["confirmed", "completed", "no_show"]}},
                 {"_id": 0, "start_at_utc": 1},
                 sort=[("start_at_utc", 1)],
             )
@@ -292,7 +292,7 @@ def build_admin_router(db, services, get_booking_settings, london):
             trend.append({
                 "date": current_date.isoformat(),
                 "revenue": sum(float(b.get("price") or 0) for b in day_completed),
-                "bookings": len([b for b in day_items if b.get("status") not in {"cancelled", "expired"}]),
+                "bookings": len([b for b in day_items if b.get("status") in {"confirmed", "completed", "no_show"}]),
                 "completed": len(day_completed),
             })
 
@@ -330,7 +330,10 @@ def build_admin_router(db, services, get_booking_settings, london):
         start = datetime.combine(first_day, datetime.min.time(), tzinfo=london)
         end = start + timedelta(days=days)
         bookings = await db.bookings.find(
-            {"start_at_utc": {"$gte": start.astimezone(timezone.utc).isoformat(), "$lt": end.astimezone(timezone.utc).isoformat()}},
+            {
+                "status": {"$in": ["confirmed", "completed", "no_show"]},
+                "start_at_utc": {"$gte": start.astimezone(timezone.utc).isoformat(), "$lt": end.astimezone(timezone.utc).isoformat()},
+            },
             {"_id": 0, "stripe_payment_method_id": 0, "active_slot_key": 0},
         ).sort("start_at_utc", 1).to_list(1000)
         return {"start_date": first_day.isoformat(), "days": days, "bookings": bookings}
@@ -380,7 +383,7 @@ def build_admin_router(db, services, get_booking_settings, london):
     async def admin_clients(q: Optional[str] = Query(default=None, max_length=80), _=Depends(require_admin)):
         await expire_pending_requests()
         pipeline = [
-            {"$match": {"status": {"$nin": ["cancelled", "expired"]}}},
+            {"$match": {"status": {"$in": ["confirmed", "completed", "no_show"]}}},
             {"$sort": {"start_at_utc": 1}},
             {"$group": {
                 "_id": "$client_key",
@@ -450,7 +453,7 @@ def build_admin_router(db, services, get_booking_settings, london):
         cancelled = [b for b in bookings if b.get("status") == "cancelled"]
         expired = [b for b in bookings if b.get("status") == "expired"]
         now_iso = datetime.now(timezone.utc).isoformat()
-        upcoming = sorted([b for b in bookings if b.get("status") in {"confirmed", "pending"} and b.get("start_at_utc", "") >= now_iso], key=lambda b: b.get("start_at_utc", ""))
+        upcoming = sorted([b for b in bookings if b.get("status") == "confirmed" and b.get("start_at_utc", "") >= now_iso], key=lambda b: b.get("start_at_utc", ""))
         past = sorted([b for b in bookings if b.get("start_at_utc", "") < now_iso or b.get("status") in {"completed", "no_show", "cancelled", "expired"}], key=lambda b: b.get("start_at_utc", ""), reverse=True)
         name = next((b.get("customer_name") for b in bookings if b.get("customer_name")), None)
         phone = next((b.get("customer_phone") for b in bookings if b.get("customer_phone")), None)
@@ -462,7 +465,7 @@ def build_admin_router(db, services, get_booking_settings, london):
                 "name": name,
                 "phone": phone,
                 "email": email,
-                "booking_count": len([b for b in bookings if b.get("status") != "expired"]),
+                "booking_count": len([b for b in bookings if b.get("status") in {"confirmed", "completed", "no_show", "cancelled"}]),
                 "completed_count": len(completed),
                 "cancelled_count": len(cancelled),
                 "expired_count": len(expired),

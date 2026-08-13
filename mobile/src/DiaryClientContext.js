@@ -2,10 +2,38 @@ import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
 const TOKEN_KEY = "quincyfadez.adminToken";
 const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const clientCache = new Map();
+const pendingLoads = new Map();
+
+async function fetchClientContext(clientKey) {
+  const cached = clientCache.get(clientKey);
+  if (cached && Date.now() - cached.loadedAt < CACHE_TTL_MS) return cached.client;
+  if (pendingLoads.has(clientKey)) return pendingLoads.get(clientKey);
+
+  const task = (async () => {
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    if (!token) return null;
+    const response = await fetch(`${API_URL}/api/admin/clients/${encodeURIComponent(clientKey)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error("Client context unavailable");
+    const client = data.client || null;
+    if (client) clientCache.set(clientKey, { client, loadedAt: Date.now() });
+    return client;
+  })();
+
+  pendingLoads.set(clientKey, task);
+  try {
+    return await task;
+  } finally {
+    pendingLoads.delete(clientKey);
+  }
+}
 
 function ContextPill({ label, tone = "neutral" }) {
   return <View style={[styles.pill, tone === "positive" && styles.pillPositive, tone === "warning" && styles.pillWarning, tone === "danger" && styles.pillDanger]}>
@@ -14,25 +42,24 @@ function ContextPill({ label, tone = "neutral" }) {
 }
 
 export default function DiaryClientContext({ clientKey }) {
-  const [client, setClient] = useState(null);
+  const [client, setClient] = useState(() => clientCache.get(clientKey)?.client || null);
   const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      if (!clientKey || !API_URL) return;
-      try {
-        const token = await AsyncStorage.getItem(TOKEN_KEY);
-        if (!token) return;
-        const response = await fetch(`${API_URL}/api/admin/clients/${encodeURIComponent(clientKey)}`, { headers: { Authorization: `Bearer ${token}` } });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error("Client context unavailable");
-        if (active) setClient(data.client || null);
-      } catch (_) {
-        if (active) setUnavailable(true);
-      }
-    };
-    load();
+    setUnavailable(false);
+    if (!clientKey || !API_URL) return () => { active = false; };
+
+    const cached = clientCache.get(clientKey);
+    if (cached && Date.now() - cached.loadedAt < CACHE_TTL_MS) {
+      setClient(cached.client);
+      return () => { active = false; };
+    }
+
+    fetchClientContext(clientKey)
+      .then((nextClient) => { if (active) setClient(nextClient); })
+      .catch(() => { if (active) setUnavailable(true); });
+
     return () => { active = false; };
   }, [clientKey]);
 
@@ -40,15 +67,25 @@ export default function DiaryClientContext({ clientKey }) {
     if (!client) return [];
     const items = [];
     const tags = Array.isArray(client.tags) ? client.tags : [];
-    if (client.blocked) items.push({ label: "BOOKING BLOCKED", tone: "danger" });
-    if (tags.some((tag) => String(tag).toLowerCase() === "vip")) items.push({ label: "VIP", tone: "positive" });
-    else if (client.regular) items.push({ label: "REGULAR", tone: "positive" });
+    const lowerTags = tags.map((tag) => String(tag).toLowerCase());
+    const completed = Number(client.completed_count || 0);
     const noShows = Number(client.no_show_count || 0);
     const cancelled = Number(client.cancelled_count || 0);
-    if (noShows >= 2 || tags.some((tag) => String(tag).toLowerCase().includes("no-show risk"))) items.push({ label: `${Math.max(noShows, 2)} NO-SHOWS · RISK`, tone: "danger" });
+
+    if (client.blocked) items.push({ label: "BOOKING BLOCKED", tone: "danger" });
+    if (lowerTags.includes("vip")) items.push({ label: "VIP", tone: "positive" });
+    else if (client.regular) items.push({ label: "REGULAR", tone: "positive" });
+    else if (completed === 0) items.push({ label: "FIRST VISIT", tone: "positive" });
+
+    if (noShows >= 2 || lowerTags.some((tag) => tag.includes("no-show risk"))) items.push({ label: `${Math.max(noShows, 2)} NO-SHOWS · RISK`, tone: "danger" });
     else if (noShows === 1) items.push({ label: "1 NO-SHOW", tone: "warning" });
-    else if (cancelled >= 3 || tags.some((tag) => String(tag).toLowerCase().includes("late risk"))) items.push({ label: "WATCH RELIABILITY", tone: "warning" });
-    tags.filter((tag) => !["vip", "regular", "no-show risk", "late risk"].includes(String(tag).toLowerCase())).slice(0, 2).forEach((tag) => items.push({ label: String(tag).toUpperCase(), tone: "neutral" }));
+    else if (cancelled >= 3 || lowerTags.some((tag) => tag.includes("late risk"))) items.push({ label: "WATCH RELIABILITY", tone: "warning" });
+
+    tags
+      .filter((tag) => !["vip", "regular", "no-show risk", "late risk"].includes(String(tag).toLowerCase()))
+      .slice(0, 2)
+      .forEach((tag) => items.push({ label: String(tag).toUpperCase(), tone: "neutral" }));
+
     return items.slice(0, 4);
   }, [client]);
 

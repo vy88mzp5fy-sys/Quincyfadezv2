@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta, date, time
 from zoneinfo import ZoneInfo
 import stripe
 from admin_api import build_admin_router
+from payment_policy import PaymentCapabilities, build_booking_payment_plan
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -26,6 +27,21 @@ app = FastAPI()
 api_router = APIRouter(prefix="/api")
 LONDON = ZoneInfo("Europe/London")
 PAYMENT_STATE_VERSION = 1
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _payment_capabilities() -> PaymentCapabilities:
+    return PaymentCapabilities(
+        deposit_capture=_env_flag("PAYMENT_DEPOSIT_CAPTURE_ENABLED", False),
+        cancellation_fee_capture=_env_flag("PAYMENT_CANCELLATION_FEE_CAPTURE_ENABLED", False),
+    )
+
 
 SERVICES = {
     "Haircut": {"price": 20, "duration_minutes": 45},
@@ -97,14 +113,22 @@ def _card_summary(payment_method):
     }
 
 
-def _initial_booking_payment_state(payment_method, service_value: float, verified_at: str):
+def _initial_booking_payment_state(payment_method, service_value: float, verified_at: str, payment_plan: dict):
     return {
         "payment_state_version": PAYMENT_STATE_VERSION,
-        "payment_status": "not_charged",
+        "payment_status": payment_plan.get("booking_payment_status", "not_charged"),
         "payment_method_verified": True,
         "payment_method_verified_at": verified_at,
         "payment_method_summary": _card_summary(payment_method),
         "service_value": float(service_value),
+        "payment_plan": payment_plan,
+        "deposit_configured": bool(payment_plan.get("deposit", {}).get("configured")),
+        "deposit_chargeable": bool(payment_plan.get("deposit", {}).get("chargeable")),
+        "deposit_amount_requested": float(payment_plan.get("deposit", {}).get("requested_amount") or 0),
+        "deposit_amount_due_now": float(payment_plan.get("deposit", {}).get("amount_due_now") or 0),
+        "cancellation_fee_configured": bool(payment_plan.get("cancellation_fee", {}).get("configured")),
+        "cancellation_fee_chargeable": bool(payment_plan.get("cancellation_fee", {}).get("chargeable")),
+        "cancellation_fee_amount_requested": float(payment_plan.get("cancellation_fee", {}).get("requested_amount") or 0),
         "captured_amount": 0.0,
         "refunded_amount": 0.0,
         "deposit_amount_captured": 0.0,
@@ -311,6 +335,14 @@ async def booking_availability(service: str, start_date: Optional[date] = Query(
         result.append({"date": current_day.isoformat(), "slots": slots})
     return {"timezone": settings.get("timezone", "Europe/London"), "setup_required": not configured, "days": result}
 
+@api_router.get("/booking/payment-policy")
+async def booking_payment_policy(service: str):
+    service_data = SERVICES.get(service)
+    if not service_data:
+        raise HTTPException(status_code=400, detail="Unknown service.")
+    settings = await _get_booking_settings()
+    return build_booking_payment_plan(service_data["price"], settings, _payment_capabilities())
+
 @api_router.post("/booking/appointments")
 async def create_booking(input: BookingCreate):
     service_data = SERVICES.get(input.service)
@@ -324,6 +356,9 @@ async def create_booking(input: BookingCreate):
         raise HTTPException(status_code=400, detail="Booking time must include a timezone.")
     requested = input.start_at.astimezone(LONDON)
     settings = await _get_booking_settings()
+    payment_plan = build_booking_payment_plan(service_data["price"], settings, _payment_capabilities())
+    if payment_plan.get("deposit", {}).get("amount_due_now", 0) > 0:
+        raise HTTPException(status_code=503, detail="Deposit capture is enabled in policy but the live charge step is not available in this app build yet.")
     if not settings.get("weekly_hours"):
         raise HTTPException(status_code=503, detail="Booking availability is not configured yet.")
     available = await _available_slots_for_day(requested.date(), input.service, settings)
@@ -354,7 +389,7 @@ async def create_booking(input: BookingCreate):
         "approval_required": approval_required,
         "approval_expires_at": (datetime.now(timezone.utc) + timedelta(minutes=int(settings.get("booking_approval_expiry_minutes", 30)))).isoformat() if approval_required else None,
         "stripe_payment_method_id": payment_method.id,
-        **_initial_booking_payment_state(payment_method, service_data["price"], now),
+        **_initial_booking_payment_state(payment_method, service_data["price"], now, payment_plan),
         "created_at": now,
         "updated_at": now,
     }
@@ -385,11 +420,14 @@ async def cancel_booking(booking_id: str, input: BookingCancel):
         return {"cancelled": True}
     settings = await _get_booking_settings()
     await _assert_booking_time_allowed(booking, settings, "cancel")
+    plan = build_booking_payment_plan(booking.get("service_value", booking.get("price", 0)), settings, _payment_capabilities())
+    if plan.get("cancellation_fee", {}).get("chargeable"):
+        raise HTTPException(status_code=503, detail="Cancellation-fee capture is enabled in policy but the live charge step is not available in this app build yet.")
     await db.bookings.update_one(
         {"id": booking_id, "client_key": input.client_key},
         {"$set": {"status": "cancelled", "active_slot_key": None, "cancelled_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
-    return {"cancelled": True}
+    return {"cancelled": True, "cancellation_fee_charged": False}
 
 @api_router.post("/booking/appointments/{booking_id}/reschedule")
 async def reschedule_booking(booking_id: str, input: BookingReschedule):
@@ -434,7 +472,7 @@ async def payment_config():
     publishable_key = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
     if not publishable_key:
         raise HTTPException(status_code=503, detail="Stripe publishable key is not configured yet.")
-    return {"publishable_key": publishable_key}
+    return {"publishable_key": publishable_key, "capabilities": _payment_capabilities().as_dict()}
 
 @api_router.post("/payments/confirm-setup")
 async def confirm_payment_setup(input: PaymentSetupConfirm):
@@ -536,10 +574,11 @@ async def booking_payment_status(booking_id: str, client_key: str = Query(min_le
         "payment_status": booking.get("payment_status", "not_charged"),
         "payment_method_verified": bool(booking.get("payment_method_verified", bool(booking.get("payment_method_summary")))),
         "payment_method_summary": booking.get("payment_method_summary"),
+        "payment_plan": booking.get("payment_plan"),
         **ledger,
     }
 
-api_router.include_router(build_admin_router(db, SERVICES, _get_booking_settings, LONDON))
+api_router.include_router(build_admin_router(db, SERVICES, _get_booking_settings, LONDON, _payment_capabilities))
 app.include_router(api_router)
 
 @app.get("/health")

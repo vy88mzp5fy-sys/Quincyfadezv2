@@ -5,8 +5,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const BG="#050505",GOLD="#C99B4A",GOLD_LIGHT="#E7C77A",BORDER="#242424",MUTED="#929292";
 const API_URL=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
 const SESSION_STORAGE="quincyfadez.clientSession";
+const CLIENT_KEY_STORAGE="quincyfadez.paymentClientKey";
+const PROFILE_STORAGE="quincyfadez.bookingProfile";
 
 async function readJson(response){return response.json().catch(()=>({}));}
+
+async function persistClientSession(session){
+  const clientKey=session?.client_key||session?.profile?.client_key||"";
+  const profile=session?.profile||{};
+  const writes=[[SESSION_STORAGE,JSON.stringify(session)]];
+  if(clientKey)writes.push([CLIENT_KEY_STORAGE,clientKey]);
+  writes.push([PROFILE_STORAGE,JSON.stringify({name:profile.name||"",phone:profile.phone||"",email:profile.email||""})]);
+  await AsyncStorage.multiSet(writes);
+}
 
 export default function AuthScreen({onClient,onAdmin}){
   const [mode,setMode]=useState("login"),[name,setName]=useState(""),[email,setEmail]=useState(""),[phone,setPhone]=useState(""),[password,setPassword]=useState(""),[error,setError]=useState(""),[busy,setBusy]=useState(false),[restoring,setRestoring]=useState(true);
@@ -21,7 +32,12 @@ export default function AuthScreen({onClient,onAdmin}){
         if(!session?.token)return;
         const response=await fetch(`${API_URL}/api/client/me`,{headers:{Authorization:`Bearer ${session.token}`}});
         const data=await readJson(response);
-        if(response.ok&&active){onClient({...session,...data});return;}
+        if(response.ok&&active){
+          const restored={...session,...data,client_key:data.client_key||session.client_key||data.profile?.client_key||"",profile:data.profile||session.profile||{}};
+          await persistClientSession(restored);
+          onClient(restored);
+          return;
+        }
         await AsyncStorage.removeItem(SESSION_STORAGE);
       }catch(_){
         await AsyncStorage.removeItem(SESSION_STORAGE).catch(()=>{});
@@ -49,7 +65,7 @@ export default function AuthScreen({onClient,onAdmin}){
       if(!response.ok)throw new Error(typeof data.detail==="string"?data.detail:"Your account could not be opened.");
       if(!data.token)throw new Error("The account server did not return a secure session.");
       const session={token:data.token,client_key:data.client_key||data.profile?.client_key||"",profile:data.profile||{name:data.name,email:data.email,phone:data.phone}};
-      await AsyncStorage.setItem(SESSION_STORAGE,JSON.stringify(session));
+      await persistClientSession(session);
       onClient(session);
     }catch(err){setError(err.message||"Your account could not be opened.")}
     finally{setBusy(false)}

@@ -99,12 +99,10 @@ export default function AdminNotificationsShell({ onExit }) {
     {hasAdminSession ? <>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Open schedule diary"
+        accessibilityLabel="Open Schedule"
         onPress={openSchedule}
-        style={({ pressed }) => [styles.calendar, pressed && styles.pressed]}
-      >
-        <Text style={styles.calendarIcon}>▦</Text>
-      </Pressable>
+        style={styles.scheduleTabHotspot}
+      />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${requests.length} pending booking request${requests.length === 1 ? "" : "s"}`}
@@ -135,8 +133,7 @@ export default function AdminNotificationsShell({ onExit }) {
 
 const styles = StyleSheet.create({
   shell:{flex:1,position:"relative"},
-  calendar:{position:"absolute",top:14,right:178,width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#343434",backgroundColor:"#0A0A0A",alignItems:"center",justifyContent:"center",zIndex:20},
-  calendarIcon:{color:GOLD_LIGHT,fontSize:17,fontWeight:"800"},
+  scheduleTabHotspot:{position:"absolute",left:"20%",bottom:7,width:"20%",height:62,zIndex:30},
   bell:{position:"absolute",top:14,right:132,width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#343434",backgroundColor:"#0A0A0A",alignItems:"center",justifyContent:"center",zIndex:20},
   bellActive:{borderColor:"#5A4523",backgroundColor:"#171107"},
   bellIcon:{color:GOLD_LIGHT,fontSize:20,lineHeight:22,transform:[{rotate:"45deg"}]},

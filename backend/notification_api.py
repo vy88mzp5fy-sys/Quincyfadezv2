@@ -5,6 +5,8 @@ import hashlib
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from push_delivery import send_client_push
+
 
 class PushDeviceRegister(BaseModel):
     expo_push_token: str = Field(min_length=20, max_length=255)
@@ -70,5 +72,22 @@ def build_notification_router(db):
         session = await require_client(authorization)
         count = await db.push_devices.count_documents({"client_key": session["client_key"], "enabled": True})
         return {"push_registered": count > 0, "registered_devices": count}
+
+    @router.post("/test-push")
+    async def test_push(authorization: Optional[str] = Header(default=None)):
+        session = await require_client(authorization)
+        delivery = await send_client_push(
+            db,
+            session["client_key"],
+            "QuincyFadez Notifications Are On ✂️",
+            "Your device is connected and ready for booking updates, reminders and waiting-list alerts.",
+            {"event": "push_test"},
+        )
+        if int(delivery.get("sent") or 0) < 1:
+            raise HTTPException(
+                status_code=409,
+                detail="No registered push device accepted this test. Check notification permission and device registration.",
+            )
+        return {"delivered": True, "delivery": delivery}
 
     return router

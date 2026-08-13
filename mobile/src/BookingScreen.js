@@ -4,7 +4,7 @@ import AsyncStorage from"@react-native-async-storage/async-storage";
 import{useStripe}from"@stripe/stripe-react-native";
 
 const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
-const GOLD="#C99B4A",GOLD2="#E7C77A",BG="#050505",WHITE="#101010",INK="#F5F5F5",MUTED="#929292",BORDER="#2A241A";
+const GOLD="#D6BD7A",GOLD2="#F1DDA2",BG="#050505",WHITE="#101010",INK="#F5F5F5",MUTED="#929292",BORDER="#2A241A";
 const KEY="quincyfadez.paymentClientKey",PROFILE="quincyfadez.bookingProfile";
 const SERVICES=[{name:"Haircut",price:20,duration:"45 Min"},{name:"Haircut & Beard",price:25,duration:"60 Min"},{name:"Shape Up",price:10,duration:"15 Min"},{name:"Beard Trim",price:10,duration:"15 Min"}];
 

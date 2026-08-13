@@ -1,0 +1,62 @@
+name: Backend Runtime Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-runtime.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-runtime.yml"
+
+jobs:
+  backend-runtime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile production backend modules
+        working-directory: backend
+        run: |
+          python -m py_compile \
+            server.py \
+            app.py \
+            runtime.py \
+            deploy.py \
+            deployment_readiness.py \
+            client_auth.py \
+            notification_api.py \
+            notification_worker.py \
+            waiting_list_api.py \
+            admin_waiting_list_api.py \
+            admin_api.py \
+            payment_policy.py
+
+      - name: Validate Vercel runtime configuration
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import json
+          import tomllib
+          from pathlib import Path
+
+          pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+          entrypoint = pyproject.get("tool", {}).get("vercel", {}).get("entrypoint")
+          assert entrypoint == "runtime:app", f"Unexpected Vercel entrypoint: {entrypoint!r}"
+
+          config = json.loads(Path("vercel.json").read_text())
+          crons = config.get("crons", [])
+          assert any(
+              item.get("path") == "/api/notifications/cron"
+              and item.get("schedule") == "*/5 * * * *"
+              for item in crons
+          ), "Expected secured notification Cron schedule is missing"
+          PY

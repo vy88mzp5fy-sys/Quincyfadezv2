@@ -12,8 +12,8 @@ import {
   View,
 } from "react-native";
 
-const GOLD = "#C99B4A";
-const GOLD_LIGHT = "#E7C77A";
+const GOLD = "#D6BD7A";
+const GOLD_LIGHT = "#F1DDA2";
 const BG = "#050505";
 const PANEL = "#0D0D0D";
 const BORDER = "#242424";
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   actionEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 1.6, fontWeight: "800" },
   actionTitle: { color: "#F2EEE7", fontSize: 20, lineHeight: 25, fontWeight: "650", marginTop: 7 },
   actionText: { color: "#9D968B", fontSize: 11, lineHeight: 17, marginTop: 7 },
-  primaryButton: { marginTop: 15, minHeight: 58, borderRadius: 16, backgroundColor: GOLD, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  primaryButton: { marginTop: 15, minHeight: 58, borderRadius: 16, backgroundColor: GOLD, paddingHorizontal: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between", shadowColor: GOLD, shadowOpacity: .18, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
   primaryText: { color: "#090909", fontSize: 11.5, letterSpacing: 1.1, fontWeight: "800" },
   arrowCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(0,0,0,0.12)", alignItems: "center", justifyContent: "center" },
   primaryArrow: { color: "#090909", fontSize: 28, lineHeight: 28, marginTop: -2 },

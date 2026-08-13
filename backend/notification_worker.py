@@ -8,6 +8,7 @@ from push_delivery import send_client_push
 
 
 POLL_SECONDS = 30
+CYCLE_LOOKBACK_MINUTES = 10
 
 
 def _iso(value):
@@ -94,8 +95,8 @@ async def _process_reminders(db, settings: dict) -> None:
     timing_hours = max(1, int(automation.get("timing_hours") or 24))
     now = datetime.now(timezone.utc)
     target = now + timedelta(hours=timing_hours)
-    window_start = target - timedelta(seconds=POLL_SECONDS + 15)
-    window_end = target + timedelta(seconds=POLL_SECONDS + 15)
+    window_start = target - timedelta(minutes=CYCLE_LOOKBACK_MINUTES)
+    window_end = target + timedelta(minutes=1)
     bookings = await db.bookings.find(
         {
             "status": "confirmed",
@@ -134,8 +135,9 @@ async def _process_review_requests(db, settings: dict) -> None:
         return
     timing_hours = max(0, int(automation.get("timing_hours") or 2))
     now = datetime.now(timezone.utc)
-    lower = now - timedelta(hours=timing_hours, seconds=POLL_SECONDS + 30)
-    upper = now - timedelta(hours=timing_hours) + timedelta(seconds=POLL_SECONDS + 30)
+    target = now - timedelta(hours=timing_hours)
+    lower = target - timedelta(minutes=CYCLE_LOOKBACK_MINUTES)
+    upper = target + timedelta(minutes=1)
     bookings = await db.bookings.find(
         {
             "status": "completed",

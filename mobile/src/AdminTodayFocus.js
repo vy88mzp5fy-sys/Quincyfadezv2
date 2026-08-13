@@ -1,13 +1,16 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import DiaryClientContext from "./DiaryClientContext";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
+const TOKEN_KEY = "quincyfadez.adminToken";
 
 function formatTime(value) {
   if (!value) return "—";
-  return new Date(value).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
+  return new Date(value).toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit", hour12:false, timeZone:"Europe/London" });
 }
 
 function timeUntil(value) {
@@ -26,9 +29,32 @@ function Stat({ label, value, tone }) {
   return <View style={[styles.stat, tone === "good" && styles.statGood, tone === "warn" && styles.statWarn]}><Text style={styles.statLabel}>{label}</Text><Text style={[styles.statValue, tone === "good" && styles.statValueGood, tone === "warn" && styles.statValueWarn]}>{value}</Text></View>;
 }
 
+function AttentionCard({ alert }) {
+  if (!alert) return null;
+  return <View style={[styles.attentionCard, alert.level === "high" && styles.attentionCardHigh]}><View style={[styles.attentionIcon, alert.level === "high" && styles.attentionIconHigh]}><Text style={[styles.attentionIconText, alert.level === "high" && styles.attentionIconTextHigh]}>!</Text></View><View style={styles.attentionCopy}><Text style={[styles.attentionLabel, alert.level === "high" && styles.attentionLabelHigh]}>{alert.level === "high" ? "NEEDS ATTENTION" : "USEFUL HEADS-UP"}</Text><Text style={styles.attentionTitle}>{alert.title}</Text><Text style={styles.attentionText}>{alert.text}</Text></View></View>;
+}
+
 export default function AdminTodayFocus({ overview, onOpenSchedule, onRefresh }) {
   const appointments = overview?.appointments || [];
   const next = overview?.next_booking || null;
+  const [nextClient, setNextClient] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setNextClient(null);
+    if (!next?.client_key || !API_URL) return () => { active = false; };
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem(TOKEN_KEY);
+        if (!token) return;
+        const response = await fetch(`${API_URL}/api/admin/clients/${encodeURIComponent(next.client_key)}`, { headers:{ Authorization:`Bearer ${token}` } });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && active) setNextClient(data.client || null);
+      } catch (_) {}
+    })();
+    return () => { active = false; };
+  }, [next?.client_key]);
+
   const summary = useMemo(() => {
     const completed = appointments.filter((item) => item.status === "completed").length;
     const noShows = appointments.filter((item) => item.status === "no_show").length;
@@ -37,8 +63,22 @@ export default function AdminTodayFocus({ overview, onOpenSchedule, onRefresh })
     return { completed, noShows, remaining, withNotes };
   }, [appointments]);
 
+  const alert = useMemo(() => {
+    if (!nextClient) return null;
+    const noShows = Number(nextClient.no_show_count || 0);
+    const cancelled = Number(nextClient.cancelled_count || 0);
+    const notes = String(nextClient.notes || "").trim();
+    if (nextClient.blocked) return { level:"high", title:"Client Is Booking Blocked", text:"This client has an active booking restriction on their record. Check the profile before the appointment." };
+    if (noShows >= 2) return { level:"high", title:`${noShows} Previous No-Shows`, text:"Reliability is the most important context for this next appointment, so it is prioritised above ordinary tags." };
+    if (noShows === 1) return { level:"medium", title:"Previous No-Show", text:"Worth keeping in mind before this appointment. Full reliability history is available in the client record." };
+    if (cancelled >= 3) return { level:"medium", title:"Frequent Cancellations", text:`This client has ${cancelled} recorded cancellations. Check their history if you need more context.` };
+    if (notes) return { level:"medium", title:"Private Barber Note Saved", text:"There is ongoing client information worth checking before the cut. The note itself stays inside the private appointment details." };
+    return null;
+  }, [nextClient]);
+
   return <View style={styles.card}>
-    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.eyebrow}>TODAY FOCUS</Text><Text style={styles.title}>What's Next</Text><Text style={styles.copy}>The useful things for today, without turning Home into another full diary.</Text></View><Pressable onPress={onRefresh} style={styles.refresh}><Text style={styles.refreshText}>REFRESH</Text></Pressable></View>
+    <View style={styles.header}><View style={styles.headerCopy}><Text style={styles.eyebrow}>TODAY FOCUS</Text><Text style={styles.title}>What's Next</Text><Text style={styles.copy}>Urgent context comes first. Useful labels stay visible, but they never compete with reliability or booking warnings.</Text></View><Pressable onPress={onRefresh} style={styles.refresh}><Text style={styles.refreshText}>REFRESH</Text></Pressable></View>
+    <AttentionCard alert={alert} />
     {next ? <Pressable onPress={onOpenSchedule} style={({ pressed }) => [styles.nextCard, pressed && styles.pressed]}><View style={styles.nextTime}><Text style={styles.time}>{formatTime(next.start_at)}</Text><Text style={styles.until}>{timeUntil(next.start_at)}</Text></View><View style={styles.nextCopy}><Text style={styles.nextName}>{next.customer_name || "Client"}</Text><Text style={styles.nextService}>{next.service || "Appointment"}</Text><DiaryClientContext clientKey={next.client_key} bookingNote={next.notes} /></View><Text style={styles.arrow}>›</Text></Pressable> : <View style={styles.noNext}><Text style={styles.noNextTitle}>No Upcoming Appointment Right Now</Text><Text style={styles.noNextText}>Your next confirmed appointment will appear here automatically.</Text></View>}
     <View style={styles.stats}><Stat label="LEFT TODAY" value={String(summary.remaining)} /><Stat label="COMPLETED" value={String(summary.completed)} tone="good" /><Stat label="NO-SHOWS" value={String(summary.noShows)} tone={summary.noShows ? "warn" : undefined} /><Stat label="WITH NOTES" value={String(summary.withNotes)} /></View>
     <Pressable onPress={onOpenSchedule} style={styles.openButton}><Text style={styles.openButtonText}>OPEN TODAY'S SCHEDULE</Text><Text style={styles.openArrow}>›</Text></Pressable>
@@ -46,5 +86,5 @@ export default function AdminTodayFocus({ overview, onOpenSchedule, onRefresh })
 }
 
 const styles = StyleSheet.create({
-  card:{marginTop:14,borderRadius:20,borderWidth:1,borderColor:"#322A1D",backgroundColor:"#0C0A07",padding:16},header:{flexDirection:"row",alignItems:"flex-start",gap:10},headerCopy:{flex:1},eyebrow:{color:GOLD,fontSize:7,letterSpacing:1.5,fontWeight:"900"},title:{color:"#F1E8D9",fontSize:18,fontWeight:"800",marginTop:5},copy:{color:"#847C70",fontSize:8.5,lineHeight:14,marginTop:6},refresh:{borderRadius:10,borderWidth:1,borderColor:"#3D3324",paddingHorizontal:8,paddingVertical:7},refreshText:{color:"#A98F62",fontSize:5.5,letterSpacing:.7,fontWeight:"900"},nextCard:{marginTop:13,minHeight:86,borderRadius:15,borderWidth:1,borderColor:"#51401F",backgroundColor:"#151006",padding:12,flexDirection:"row",alignItems:"center",gap:11},pressed:{opacity:.72},nextTime:{width:58},time:{color:GOLD_LIGHT,fontSize:17,fontWeight:"900"},until:{color:"#8C744A",fontSize:5.8,letterSpacing:.5,fontWeight:"900",marginTop:5},nextCopy:{flex:1},nextName:{color:"#F2EDE5",fontSize:13,fontWeight:"800"},nextService:{color:"#9A9287",fontSize:8,marginTop:4},arrow:{color:GOLD_LIGHT,fontSize:25},noNext:{marginTop:13,borderRadius:14,borderWidth:1,borderColor:"#25221C",backgroundColor:"#090807",padding:14},noNextTitle:{color:"#DED7CC",fontSize:11,fontWeight:"800"},noNextText:{color:"#777067",fontSize:7.5,lineHeight:12,marginTop:5},stats:{flexDirection:"row",gap:6,marginTop:9},stat:{flex:1,minHeight:60,borderRadius:12,borderWidth:1,borderColor:"#25221C",backgroundColor:"#090807",padding:9,justifyContent:"space-between"},statGood:{borderColor:"#284232",backgroundColor:"#09100B"},statWarn:{borderColor:"#51302A",backgroundColor:"#120B0A"},statLabel:{color:"#746650",fontSize:5,letterSpacing:.55,fontWeight:"900"},statValue:{color:"#E9DFD0",fontSize:16,fontWeight:"900"},statValueGood:{color:"#91D1AD"},statValueWarn:{color:"#D98778"},openButton:{minHeight:45,borderRadius:12,backgroundColor:GOLD,marginTop:10,paddingHorizontal:12,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},openButtonText:{color:"#090909",fontSize:6.5,letterSpacing:.8,fontWeight:"900"},openArrow:{color:"#090909",fontSize:20,fontWeight:"900"}
+  card:{marginTop:14,borderRadius:20,borderWidth:1,borderColor:"#322A1D",backgroundColor:"#0C0A07",padding:16},header:{flexDirection:"row",alignItems:"flex-start",gap:10},headerCopy:{flex:1},eyebrow:{color:GOLD,fontSize:7,letterSpacing:1.5,fontWeight:"900"},title:{color:"#F1E8D9",fontSize:18,fontWeight:"800",marginTop:5},copy:{color:"#847C70",fontSize:8.5,lineHeight:14,marginTop:6},refresh:{borderRadius:10,borderWidth:1,borderColor:"#3D3324",paddingHorizontal:8,paddingVertical:7},refreshText:{color:"#A98F62",fontSize:5.5,letterSpacing:.7,fontWeight:"900"},attentionCard:{marginTop:12,borderRadius:14,borderWidth:1,borderColor:"#5A4523",backgroundColor:"#171107",padding:11,flexDirection:"row",gap:10},attentionCardHigh:{borderColor:"#65342E",backgroundColor:"#160B09"},attentionIcon:{width:28,height:28,borderRadius:14,borderWidth:1,borderColor:"#6A5229",alignItems:"center",justifyContent:"center"},attentionIconHigh:{borderColor:"#7A3E35"},attentionIconText:{color:GOLD_LIGHT,fontSize:12,fontWeight:"900"},attentionIconTextHigh:{color:"#E3998D"},attentionCopy:{flex:1},attentionLabel:{color:GOLD_LIGHT,fontSize:5.4,letterSpacing:.8,fontWeight:"900"},attentionLabelHigh:{color:"#E3998D"},attentionTitle:{color:"#F0E5D3",fontSize:10.5,fontWeight:"800",marginTop:4},attentionText:{color:"#8F8373",fontSize:7.3,lineHeight:11.5,marginTop:4},nextCard:{marginTop:13,minHeight:86,borderRadius:15,borderWidth:1,borderColor:"#51401F",backgroundColor:"#151006",padding:12,flexDirection:"row",alignItems:"center",gap:11},pressed:{opacity:.72},nextTime:{width:58},time:{color:GOLD_LIGHT,fontSize:17,fontWeight:"900"},until:{color:"#8C744A",fontSize:5.8,letterSpacing:.5,fontWeight:"900",marginTop:5},nextCopy:{flex:1},nextName:{color:"#F2EDE5",fontSize:13,fontWeight:"800"},nextService:{color:"#9A9287",fontSize:8,marginTop:4},arrow:{color:GOLD_LIGHT,fontSize:25},noNext:{marginTop:13,borderRadius:14,borderWidth:1,borderColor:"#25221C",backgroundColor:"#090807",padding:14},noNextTitle:{color:"#DED7CC",fontSize:11,fontWeight:"800"},noNextText:{color:"#777067",fontSize:7.5,lineHeight:12,marginTop:5},stats:{flexDirection:"row",gap:6,marginTop:9},stat:{flex:1,minHeight:60,borderRadius:12,borderWidth:1,borderColor:"#25221C",backgroundColor:"#090807",padding:9,justifyContent:"space-between"},statGood:{borderColor:"#284232",backgroundColor:"#09100B"},statWarn:{borderColor:"#51302A",backgroundColor:"#120B0A"},statLabel:{color:"#746650",fontSize:5,letterSpacing:.55,fontWeight:"900"},statValue:{color:"#E9DFD0",fontSize:16,fontWeight:"900"},statValueGood:{color:"#91D1AD"},statValueWarn:{color:"#D98778"},openButton:{minHeight:45,borderRadius:12,backgroundColor:GOLD,marginTop:10,paddingHorizontal:12,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},openButtonText:{color:"#090909",fontSize:6.5,letterSpacing:.8,fontWeight:"900"},openArrow:{color:"#090909",fontSize:20,fontWeight:"900"}
 });

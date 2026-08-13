@@ -1,279 +1,69 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useStripe } from "@stripe/stripe-react-native";
+import React,{useEffect,useMemo,useState}from"react";
+import{ActivityIndicator,Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,TextInput,View}from"react-native";
+import AsyncStorage from"@react-native-async-storage/async-storage";
+import{useStripe}from"@stripe/stripe-react-native";
 
-const GOLD = "#C99B4A";
-const GOLD_LIGHT = "#E7C77A";
-const BG = "#050505";
-const PANEL = "#0D0D0D";
-const BORDER = "#242424";
-const MUTED = "#9A9A9A";
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "").replace(/\/$/, "");
-const CLIENT_KEY_STORAGE = "quincyfadez.paymentClientKey";
-const PROFILE_STORAGE = "quincyfadez.bookingProfile";
+const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
+const GOLD="#C99B4A",GOLD2="#9F7734",BG="#F7F6F3",WHITE="#FFFFFF",INK="#111111",MUTED="#858585",BORDER="#E7E3DC";
+const KEY="quincyfadez.paymentClientKey",PROFILE="quincyfadez.bookingProfile";
+const SERVICES=[{name:"Haircut",price:20,duration:"45 Min"},{name:"Haircut & Beard",price:25,duration:"60 Min"},{name:"Shape Up",price:10,duration:"15 Min"},{name:"Beard Trim",price:10,duration:"15 Min"}];
 
-const SERVICES = [
-  { name: "Haircut", price: 20, duration: "45 Minutes" },
-  { name: "Haircut & Beard", price: 25, duration: "60 Minutes" },
-  { name: "Shape Up", price: 10, duration: "15 Minutes" },
-  { name: "Beard Trim", price: 10, duration: "15 Minutes" },
-];
+const makeKey=()=>`qfz_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+async function getKey(){const saved=await AsyncStorage.getItem(KEY);if(saved)return saved;const next=makeKey();await AsyncStorage.setItem(KEY,next);return next}
+const localDate=d=>new Date(`${d}T12:00:00`);
+const dayLabel=d=>({week:localDate(d).toLocaleDateString("en-GB",{weekday:"short"}).slice(0,2),day:localDate(d).getDate(),long:localDate(d).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})});
+const monthLabel=d=>d?localDate(d).toLocaleDateString("en-GB",{month:"long",year:"numeric"}).toUpperCase():"CHOOSE A DATE";
+const timeLabel=s=>new Date(s).toLocaleTimeString("en-GB",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:"Europe/London"}).replace(":00","").replace("am","AM").replace("pm","PM");
+const hour=s=>Number(new Date(s).toLocaleTimeString("en-GB",{hour:"2-digit",hour12:false,timeZone:"Europe/London"}).slice(0,2));
+const splitSlots=slots=>({morning:slots.filter(s=>hour(s)<12),afternoon:slots.filter(s=>hour(s)>=12&&hour(s)<17),evening:slots.filter(s=>hour(s)>=17)});
 
-function makeClientKey() {
-  return `qfz_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+export default function BookingScreen({onBack,initialService="Haircut"}){
+ const{initPaymentSheet,presentPaymentSheet}=useStripe();
+ const[serviceName,setServiceName]=useState(initialService),[clientKey,setClientKey]=useState(""),[days,setDays]=useState([]),[date,setDate]=useState(""),[slot,setSlot]=useState(""),[week,setWeek]=useState(0),[loading,setLoading]=useState(false),[setup,setSetup]=useState(false),[error,setError]=useState(""),[name,setName]=useState(""),[phone,setPhone]=useState(""),[email,setEmail]=useState(""),[notes,setNotes]=useState(""),[verified,setVerified]=useState(false),[card,setCard]=useState(null),[payBusy,setPayBusy]=useState(false),[bookBusy,setBookBusy]=useState(false),[confirmed,setConfirmed]=useState(null);
+ const service=useMemo(()=>SERVICES.find(x=>x.name===serviceName)||SERVICES[0],[serviceName]);
+ const selectedDay=days.find(x=>x.date===date),slots=selectedDay?.slots||[],groups=useMemo(()=>splitSlots(slots),[slots]),visible=days.slice(week,week+7),ready=name.trim().length>=2&&phone.trim().length>=7,canBook=Boolean(slot&&verified&&ready&&!bookBusy);
+
+ const request=async(path,options={})=>{if(!API)throw new Error("Live booking is not connected in this build yet.");const r=await fetch(`${API}${path}`,{...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof data.detail==="string"?data.detail:"Something went wrong. Please try again.");return data};
+ const verify=async(k,silent=false)=>{if(!k||!API)return false;try{const d=await request("/api/payments/verify",{method:"POST",body:JSON.stringify({client_key:k})});setVerified(Boolean(d.verified));setCard(d.payment_method||null);if(!silent)setError("");return Boolean(d.verified)}catch(e){if(!silent)setError(e.message);return false}};
+ const load=async()=>{setSlot("");if(!API){setDays([]);setDate("");return}setLoading(true);setError("");try{const d=await request(`/api/booking/availability?service=${encodeURIComponent(serviceName)}&days=21`),list=d.days||[];setDays(list);setSetup(Boolean(d.setup_required));const first=list.find(x=>x.slots?.length),next=first?.date||list[0]?.date||"";setDate(next);const i=Math.max(0,list.findIndex(x=>x.date===next));setWeek(Math.floor(i/7)*7)}catch(e){setError(e.message);setDays([]);setDate("")}finally{setLoading(false)}};
+
+ useEffect(()=>{let active=true;Promise.all([getKey(),AsyncStorage.getItem(PROFILE)]).then(async([k,p])=>{if(!active)return;setClientKey(k);if(p)try{const v=JSON.parse(p);setName(v.name||"");setPhone(v.phone||"");setEmail(v.email||"")}catch(_){}await verify(k,true)}).catch(()=>active&&setError("Secure booking setup could not start."));return()=>{active=false}},[]);
+ useEffect(()=>{load()},[serviceName]);
+
+ const confirmHandler=async(token,cb)=>{try{const d=await request("/api/payments/confirm-setup",{method:"POST",body:JSON.stringify({client_key:clientKey,confirmation_token_id:token.id})});if(!d.client_secret)throw new Error("Stripe did not return a setup confirmation.");cb({clientSecret:d.client_secret})}catch(e){cb({error:{localizedMessage:e.message||"Payment setup failed."}})}};
+ const addCard=async()=>{if(!clientKey||payBusy)return;setPayBusy(true);setError("");try{const{error:initError}=await initPaymentSheet({merchantDisplayName:"QuincyFadez",returnURL:"quincyfadez://stripe-redirect",appearance:{colors:{primary:GOLD2,background:WHITE,componentBackground:BG,componentBorder:BORDER,primaryText:INK,secondaryText:MUTED,componentText:INK,placeholderText:"#999"},shapes:{borderRadius:14,borderWidth:1}},intentConfiguration:{mode:{currencyCode:"GBP"},confirmHandler}});if(initError)throw new Error(initError.message);const{error:presentError}=await presentPaymentSheet();if(presentError){if(presentError.code==="Canceled")return;throw new Error(presentError.message)}if(!await verify(clientKey))throw new Error("Your card has not been verified yet.")}catch(e){setError(e.message||"Payment setup could not be completed.")}finally{setPayBusy(false)}};
+ const book=async()=>{if(!canBook)return;setBookBusy(true);setError("");try{const p={name:name.trim(),phone:phone.trim(),email:email.trim()};await AsyncStorage.setItem(PROFILE,JSON.stringify(p));const d=await request("/api/booking/appointments",{method:"POST",body:JSON.stringify({client_key:clientKey,service:serviceName,start_at:slot,customer_name:p.name,customer_phone:p.phone,customer_email:p.email||null,notes:notes.trim()||null})});setConfirmed(d)}catch(e){setError(e.message);if(/available|booked/i.test(e.message))await load()}finally{setBookBusy(false)}};
+ const shift=n=>setWeek(Math.max(0,Math.min(Math.max(0,days.length-7),week+n*7)));
+ const waitlist=()=>setError(API?"The QuincyFadez waitlist is being connected next. No request has been sent yet.":"Live booking must be connected before the waitlist can open.");
+
+ if(confirmed)return <SafeAreaView style={s.safe}><StatusBar barStyle="dark-content" backgroundColor={BG}/><ScrollView contentContainerStyle={s.confirm}><Logo/><Text style={s.brand}>QuincyFadez</Text><Text style={s.doneTitle}>{confirmed.status==="pending"?"Booking Request Sent":"You’re Booked"}</Text><Text style={s.subtitle}>{dayLabel(confirmed.start_at.slice(0,10)).long} · {timeLabel(confirmed.start_at)}</Text><View style={s.summary}><Row l="Service" v={confirmed.service}/><Row l="Service Value" v={`£${confirmed.price}`}/><Row l="Status" v={confirmed.status==="pending"?"Awaiting Approval":"Confirmed"} last/></View><Pressable onPress={onBack} style={s.primary}><Text style={s.primaryText}>DONE</Text></Pressable></ScrollView></SafeAreaView>;
+
+ return <SafeAreaView style={s.safe}><StatusBar barStyle="dark-content" backgroundColor={BG}/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+  <View style={s.top}><Pressable onPress={onBack} hitSlop={14} style={s.back}><Text style={s.backText}>‹</Text></Pressable><Logo/><View style={s.spacer}/></View>
+  <Text style={s.brand}>QuincyFadez</Text><Text style={s.subtitle}>Please choose a time for your service</Text>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.services}>{SERVICES.map(x=>{const a=x.name===serviceName;return <Pressable key={x.name} onPress={()=>setServiceName(x.name)} style={[s.service,a&&s.serviceActive]}><Text style={[s.serviceName,a&&s.goldText]}>{x.name}</Text><Text style={[s.serviceMeta,a&&s.goldText]}>{x.duration} · £{x.price}</Text></Pressable>})}</ScrollView>
+
+  <View style={s.calendar}><View style={s.calHead}><Pressable disabled={!week} onPress={()=>shift(-1)} style={s.arrow}><Text style={[s.arrowText,!week&&s.dim]}>‹</Text></Pressable><Text style={s.month}>{monthLabel(visible[0]?.date||date)}</Text><Pressable disabled={week+7>=days.length} onPress={()=>shift(1)} style={s.arrow}><Text style={[s.arrowText,week+7>=days.length&&s.dim]}>›</Text></Pressable></View>
+   {!API?<Notice title="BOOKING CONNECTION REQUIRED" text="Live dates and times will appear here once the QuincyFadez booking server is connected."/>:loading?<View style={s.loading}><ActivityIndicator color={GOLD2}/><Text style={s.loadingText}>Checking live availability…</Text></View>:setup?<Notice title="WORKING HOURS REQUIRED" text="Booking stays closed until working hours are configured in Admin."/>:visible.length?<View style={s.days}>{visible.map(d=>{const lab=dayLabel(d.date),active=d.date===date,disabled=!d.slots?.length;return <Pressable key={d.date} disabled={disabled} onPress={()=>{setDate(d.date);setSlot("")}} style={s.day}><Text style={[s.weekday,disabled&&s.disabledDay]}>{lab.week}</Text><View style={[s.bubble,active&&s.bubbleActive]}><Text style={[s.dayNum,disabled&&s.disabledDay,active&&s.dayActive]}>{lab.day}</Text></View></Pressable>})}</View>:<Notice title="NO DATES AVAILABLE" text="No live availability could be loaded right now."/>}
+  </View>
+
+  <View style={s.times}><TimeGroup title="MORNING" slots={groups.morning} selected={slot} choose={setSlot} wait={waitlist}/><TimeGroup title="AFTERNOON" slots={groups.afternoon} selected={slot} choose={setSlot} wait={waitlist}/><TimeGroup title="EVENING" slots={groups.evening} selected={slot} choose={setSlot} wait={waitlist} last/></View>
+
+  <Text style={s.section}>Your Details</Text><View style={s.card}><Field label="NAME" value={name} set={setName} placeholder="Your name"/><Field label="MOBILE NUMBER" value={phone} set={setPhone} placeholder="07..." keyboardType="phone-pad"/><Field label="EMAIL · OPTIONAL" value={email} set={setEmail} placeholder="you@example.com" keyboardType="email-address"/><Text style={s.label}>NOTES · OPTIONAL</Text><TextInput value={notes} onChangeText={setNotes} placeholder="Anything I should know?" placeholderTextColor="#AAA" multiline style={[s.input,s.notes]}/></View>
+
+  <Text style={s.section}>Secure Your Booking</Text><View style={s.card}><View style={s.payTop}><View><Text style={s.label}>PAYMENT METHOD</Text><Text style={s.payTitle}>{verified?(card?.last4?`${(card.brand||"Card").toUpperCase()} •••• ${card.last4}`:"Card Verified"):"Verification Required"}</Text></View><Text style={[s.badge,verified&&s.badgeOn]}>{verified?"VERIFIED":"REQUIRED"}</Text></View><Text style={s.payCopy}>Card verification protects the booking. It does not charge the appointment price.</Text>{!verified?<Pressable disabled={payBusy||!clientKey||!API} onPress={addCard} style={[s.blackButton,(payBusy||!clientKey||!API)&&s.buttonOff]}><Text style={s.blackText}>{payBusy?"OPENING STRIPE…":"VERIFY PAYMENT METHOD"}</Text></Pressable>:null}</View>
+
+  <View style={s.summary}><Row l="Service" v={`${service.name} · £${service.price}`}/><Row l="Date" v={date?dayLabel(date).long:"Not Selected"}/><Row l="Time" v={slot?timeLabel(slot):"Not Selected"}/><Row l="Booked For" v={name.trim()||"Not Entered"} last/></View>
+  {error?<View style={s.error}><Text style={s.errorText}>{error}</Text></View>:null}
+  <Pressable disabled={!canBook} onPress={book} style={[s.primary,!canBook&&s.primaryOff]}>{bookBusy?<ActivityIndicator color="#FFF"/>:<Text style={s.primaryText}>{slot?"REQUEST BOOKING":"CHOOSE A TIME"}</Text>}</Pressable>
+  <Text style={s.footer}>QUINCYFADEZ · OXFORD</Text>
+ </ScrollView></SafeAreaView>
 }
 
-async function getClientKey() {
-  const existing = await AsyncStorage.getItem(CLIENT_KEY_STORAGE);
-  if (existing) return existing;
-  const created = makeClientKey();
-  await AsyncStorage.setItem(CLIENT_KEY_STORAGE, created);
-  return created;
-}
+function Logo(){return <View style={s.logo}><Text style={s.logoText}>QF</Text></View>}
+function Notice({title,text}){return <View style={s.notice}><Text style={s.noticeTitle}>{title}</Text><Text style={s.noticeText}>{text}</Text></View>}
+function TimeGroup({title,slots,selected,choose,wait,last}){return <View style={[s.group,last&&s.groupLast]}><Text style={s.groupTitle}>{title}</Text>{slots.length?<View style={s.grid}>{slots.map(x=><Pressable key={x} onPress={()=>choose(x)} style={[s.time,x===selected&&s.timeActive]}><Text style={[s.timeText,x===selected&&s.timeTextActive]}>{timeLabel(x)}</Text></Pressable>)}</View>:<Pressable onPress={wait} style={s.wait}><Text style={s.waitText}>JOIN WAITLIST</Text></Pressable>}</View>}
+function Field({label,value,set,placeholder,keyboardType}){return <><Text style={s.label}>{label}</Text><TextInput value={value} onChangeText={set} placeholder={placeholder} placeholderTextColor="#AAA" keyboardType={keyboardType} autoCapitalize={keyboardType==="email-address"?"none":"words"} style={s.input}/></>}
+function Row({l,v,last}){return <View style={[s.row,last&&s.rowLast]}><Text style={s.rowLabel}>{l}</Text><Text style={s.rowValue}>{v}</Text></View>}
 
-function formatDay(isoDate) {
-  const date = new Date(`${isoDate}T12:00:00`);
-  return {
-    weekday: date.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase(),
-    day: date.toLocaleDateString("en-GB", { day: "2-digit" }),
-    month: date.toLocaleDateString("en-GB", { month: "short" }).toUpperCase(),
-    long: date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }),
-  };
-}
-
-function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/London" });
-}
-
-function bookingPaymentLabel(booking) {
-  if (!booking) return "—";
-  if (Number(booking.captured_amount || 0) > 0) return `£${Number(booking.captured_amount).toFixed(2)} Captured`;
-  if (booking.payment_status === "not_charged" || booking.payment_method_verified) return "Card Verified · No Charge Yet";
-  return "No Payment Recorded";
-}
-
-export default function BookingScreen({ onBack, initialService = "Haircut" }) {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const [selectedService, setSelectedService] = useState(initialService);
-  const [clientKey, setClientKey] = useState("");
-  const [availability, setAvailability] = useState([]);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState("");
-  const [loadingSlots, setLoadingSlots] = useState(false);
-  const [setupRequired, setSetupRequired] = useState(false);
-  const [paymentVerified, setPaymentVerified] = useState(false);
-  const [paymentSummary, setPaymentSummary] = useState(null);
-  const [paymentBusy, setPaymentBusy] = useState(false);
-  const [bookingBusy, setBookingBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [confirmedBooking, setConfirmedBooking] = useState(null);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
-  const [notes, setNotes] = useState("");
-
-  const service = useMemo(() => SERVICES.find((item) => item.name === selectedService) || SERVICES[0], [selectedService]);
-  const selectedDay = availability.find((item) => item.date === selectedDate);
-  const slots = selectedDay?.slots || [];
-  const detailsReady = customerName.trim().length >= 2 && customerPhone.trim().length >= 7;
-
-  const request = async (path, options = {}) => {
-    if (!API_URL) throw new Error("The QuincyFadez booking server is still being connected.");
-    const response = await fetch(`${API_URL}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Something went wrong. Please try again.");
-    return data;
-  };
-
-  const verifyPaymentMethod = async (key, silent = false) => {
-    if (!key || !API_URL) return false;
-    try {
-      const data = await request("/api/payments/verify", { method: "POST", body: JSON.stringify({ client_key: key }) });
-      setPaymentVerified(Boolean(data.verified));
-      setPaymentSummary(data.payment_method || null);
-      if (!silent) setError("");
-      return Boolean(data.verified);
-    } catch (err) {
-      if (!silent) setError(err.message);
-      return false;
-    }
-  };
-
-  const loadAvailability = async () => {
-    if (!API_URL) {
-      setAvailability([]);
-      setSelectedDate("");
-      setSelectedSlot("");
-      setSetupRequired(false);
-      return;
-    }
-    setLoadingSlots(true); setError(""); setSelectedSlot("");
-    try {
-      const data = await request(`/api/booking/availability?service=${encodeURIComponent(selectedService)}&days=21`);
-      setAvailability(data.days || []);
-      setSetupRequired(Boolean(data.setup_required));
-      const firstWithSlots = (data.days || []).find((day) => day.slots?.length);
-      setSelectedDate(firstWithSlots?.date || data.days?.[0]?.date || "");
-    } catch (err) { setError(err.message); setAvailability([]); setSelectedDate(""); }
-    finally { setLoadingSlots(false); }
-  };
-
-  useEffect(() => {
-    let active = true;
-    Promise.all([getClientKey(), AsyncStorage.getItem(PROFILE_STORAGE)]).then(async ([key, savedProfile]) => {
-      if (!active) return;
-      setClientKey(key);
-      if (savedProfile) {
-        try {
-          const profile = JSON.parse(savedProfile);
-          setCustomerName(profile.name || ""); setCustomerPhone(profile.phone || ""); setCustomerEmail(profile.email || "");
-        } catch (_) {}
-      }
-      await verifyPaymentMethod(key, true);
-    }).catch(() => { if (active) setError("Secure booking setup could not start on this device."); });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => { loadAvailability(); }, [selectedService]);
-
-  const confirmHandler = async (confirmationToken, intentCreationCallback) => {
-    try {
-      const data = await request("/api/payments/confirm-setup", { method: "POST", body: JSON.stringify({ client_key: clientKey, confirmation_token_id: confirmationToken.id }) });
-      if (!data.client_secret) throw new Error("Stripe did not return a setup confirmation.");
-      intentCreationCallback({ clientSecret: data.client_secret });
-    } catch (err) { intentCreationCallback({ error: { localizedMessage: err.message || "Your payment method could not be set up." } }); }
-  };
-
-  const addPaymentMethod = async () => {
-    if (!clientKey || paymentBusy) return;
-    setPaymentBusy(true); setError("");
-    try {
-      const { error: initError } = await initPaymentSheet({
-        merchantDisplayName: "QuincyFadez",
-        returnURL: "quincyfadez://stripe-redirect",
-        appearance: { colors: { primary: GOLD, background: "#0A0A0A", componentBackground: "#111111", componentBorder: "#2A2A2A", componentDivider: "#2A2A2A", primaryText: "#F5F5F5", secondaryText: "#9A9A9A", componentText: "#F5F5F5", placeholderText: "#777777" }, shapes: { borderRadius: 14, borderWidth: 1 } },
-        intentConfiguration: { mode: { currencyCode: "GBP" }, confirmHandler },
-      });
-      if (initError) throw new Error(initError.message || "Payment setup could not be opened.");
-      const { error: presentError } = await presentPaymentSheet();
-      if (presentError) { if (presentError.code === "Canceled") return; throw new Error(presentError.message || "Payment setup was not completed."); }
-      const verified = await verifyPaymentMethod(clientKey);
-      if (!verified) throw new Error("Stripe finished, but the card has not been verified yet. Please try again.");
-    } catch (err) { setError(err.message || "Payment setup could not be completed."); }
-    finally { setPaymentBusy(false); }
-  };
-
-  const confirmBooking = async () => {
-    if (!selectedSlot || !paymentVerified || !detailsReady || bookingBusy) return;
-    setBookingBusy(true); setError("");
-    try {
-      const profile = { name: customerName.trim(), phone: customerPhone.trim(), email: customerEmail.trim() };
-      await AsyncStorage.setItem(PROFILE_STORAGE, JSON.stringify(profile));
-      const data = await request("/api/booking/appointments", {
-        method: "POST",
-        body: JSON.stringify({ client_key: clientKey, service: selectedService, start_at: selectedSlot, customer_name: profile.name, customer_phone: profile.phone, customer_email: profile.email || null, notes: notes.trim() || null }),
-      });
-      setConfirmedBooking(data);
-    } catch (err) {
-      setError(err.message);
-      if (err.message.toLowerCase().includes("available") || err.message.toLowerCase().includes("booked")) await loadAvailability();
-    } finally { setBookingBusy(false); }
-  };
-
-  if (confirmedBooking) {
-    const pending = confirmedBooking.status === "pending";
-    const dateLabel = new Date(confirmedBooking.start_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/London" });
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor={BG} />
-        <ScrollView contentContainerStyle={styles.confirmedContent}>
-          <View style={[styles.confirmedMark, pending && styles.pendingMark]}><Text style={[styles.confirmedTick, pending && styles.pendingMarkText]}>{pending ? "…" : "✓"}</Text></View>
-          <Text style={styles.confirmedEyebrow}>{pending ? "BOOKING REQUEST SENT" : "BOOKING CONFIRMED"}</Text>
-          <Text style={styles.confirmedTitle}>{pending ? "Awaiting Approval." : "You’re Locked In."}</Text>
-          <Text style={styles.confirmedSubtitle}>{pending ? "Your requested time is being held while QuincyFadez reviews it. It is not confirmed until it is approved." : "Your appointment is reserved directly with QuincyFadez."}</Text>
-          <View style={styles.ticketCard}>
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>STATUS</Text><Text style={[styles.ticketValue, pending && styles.pendingTicketValue]}>{pending ? "Awaiting Approval" : "Confirmed"}</Text></View>
-            <View style={styles.ticketDivider} />
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>SERVICE</Text><Text style={styles.ticketValue}>{confirmedBooking.service}</Text></View>
-            <View style={styles.ticketDivider} />
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>DATE</Text><Text style={styles.ticketValue}>{dateLabel}</Text></View>
-            <View style={styles.ticketDivider} />
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>TIME</Text><Text style={styles.ticketValue}>{formatTime(confirmedBooking.start_at)}</Text></View>
-            <View style={styles.ticketDivider} />
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>SERVICE VALUE</Text><Text style={styles.ticketPrice}>£{confirmedBooking.price}</Text></View>
-            <View style={styles.ticketDivider} />
-            <View style={styles.ticketRow}><Text style={styles.ticketLabel}>PAYMENT</Text><Text style={styles.ticketValue}>{bookingPaymentLabel(confirmedBooking)}</Text></View>
-          </View>
-          <View style={styles.paymentClarifier}><Text style={styles.paymentClarifierTitle}>CARD VERIFICATION IS NOT A CHARGE</Text><Text style={styles.paymentClarifierText}>Your saved card is verified for booking protection. This booking has not taken a payment unless a captured payment is shown above.</Text></View>
-          <View style={[styles.confirmationNote, pending && styles.pendingNote]}><Text style={styles.confirmationNoteTitle}>{pending ? "WHAT HAPPENS NEXT" : "MANAGE IT IN ACCOUNT"}</Text><Text style={styles.confirmationNoteText}>{pending ? "You can follow the request from Account. Once approved it will change to Confirmed. If the request expires or is declined, it will move into your recent activity instead." : "Your appointment now lives inside QuincyFadez. Upcoming bookings, changes and cancellations are managed from Account."}</Text></View>
-          <Pressable onPress={onBack} style={styles.doneButton}><Text style={styles.doneButtonText}>DONE</Text></Pressable>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  const paymentLabel = paymentSummary?.last4 ? `${(paymentSummary.brand || "Card").toUpperCase()}  •••• ${paymentSummary.last4}` : "PAYMENT METHOD VERIFIED";
-  const canConfirm = Boolean(selectedSlot && paymentVerified && detailsReady && !bookingBusy);
-  const progress = [
-    { label: "SERVICE", active: true }, { label: "DATE", active: Boolean(selectedDate) }, { label: "TIME", active: Boolean(selectedSlot) }, { label: "DETAILS", active: detailsReady }, { label: "CONFIRM", active: canConfirm },
-  ];
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={BG} />
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.header}><Pressable onPress={onBack} hitSlop={12} style={styles.backButton}><Text style={styles.backIcon}>‹</Text></Pressable><Text style={styles.headerTitle}>BOOK APPOINTMENT</Text><View style={styles.headerSpacer} /></View>
-        <View style={styles.progressRow}>{progress.map((item) => <View key={item.label} style={styles.progressItem}><View style={[styles.progressDot, item.active && styles.progressDotActive]} /><Text style={[styles.progressLabel, item.active && styles.progressLabelActive]}>{item.label}</Text></View>)}</View>
-        <View style={styles.intro}><Text style={styles.eyebrow}>QUINCYFADEZ BOOKING</Text><Text style={styles.title}>Book Your Next Cut.</Text><Text style={styles.subtitle}>A fast, private booking experience built directly into QuincyFadez.</Text></View>
-
-        <Text style={styles.sectionTitle}>1. Choose Your Service</Text>
-        <View style={styles.serviceList}>{SERVICES.map((item) => { const active = item.name === selectedService; return <Pressable key={item.name} onPress={() => setSelectedService(item.name)} style={({ pressed }) => [styles.serviceOption, active && styles.serviceOptionActive, pressed && styles.pressed]}><View style={[styles.radioOuter, active && styles.radioOuterActive]}>{active ? <View style={styles.radioInner} /> : null}</View><View style={styles.serviceCopy}><Text style={[styles.serviceName, active && styles.serviceNameActive]}>{item.name}</Text><Text style={styles.serviceDuration}>{item.duration}</Text></View><Text style={styles.servicePrice}>£{item.price}</Text></Pressable>; })}</View>
-
-        <Text style={styles.sectionTitle}>2. Pick A Date</Text>
-        {!API_URL ? <View style={styles.setupCard}><Text style={styles.setupTitle}>BOOKING CONNECTION REQUIRED</Text><Text style={styles.setupText}>Live dates and times are not available in this preview build yet. QuincyFadez will only show real availability once the secure booking server is connected.</Text></View> : loadingSlots ? <View style={styles.loadingCard}><ActivityIndicator color={GOLD_LIGHT} /><Text style={styles.loadingText}>Checking live availability…</Text></View> : setupRequired ? <View style={styles.setupCard}><Text style={styles.setupTitle}>AVAILABILITY SETUP REQUIRED</Text><Text style={styles.setupText}>Working hours haven’t been configured yet, so every slot stays safely closed until QuincyFadez sets the real schedule.</Text></View> : availability.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>{availability.map((day) => { const label = formatDay(day.date); const active = selectedDate === day.date; const disabled = !day.slots?.length; return <Pressable key={day.date} disabled={disabled} onPress={() => { setSelectedDate(day.date); setSelectedSlot(""); }} style={[styles.dateCard, active && styles.dateCardActive, disabled && styles.dateCardDisabled]}><Text style={[styles.dateWeekday, active && styles.dateTextActive]}>{label.weekday}</Text><Text style={[styles.dateNumber, active && styles.dateTextActive]}>{label.day}</Text><Text style={[styles.dateMonth, active && styles.dateTextActive]}>{label.month}</Text>{!disabled ? <View style={[styles.availabilityDot, active && styles.availabilityDotActive]} /> : null}</Pressable>; })}</ScrollView> : <View style={styles.setupCard}><Text style={styles.setupTitle}>NO LIVE DATES AVAILABLE</Text><Text style={styles.setupText}>The booking server returned no dates for this service. Availability will appear here as soon as valid working hours and open slots are available.</Text></View>}
-
-        <Text style={styles.sectionTitle}>3. Choose A Time</Text>
-        <View style={styles.timePanel}>{selectedDate ? <Text style={styles.selectedDateLabel}>{formatDay(selectedDate).long.toUpperCase()}</Text> : null}{slots.length ? <View style={styles.timeGrid}>{slots.map((slot) => { const active = selectedSlot === slot; return <Pressable key={slot} onPress={() => setSelectedSlot(slot)} style={[styles.timeChip, active && styles.timeChipActive]}><Text style={[styles.timeText, active && styles.timeTextActive]}>{formatTime(slot)}</Text></Pressable>; })}</View> : <Text style={styles.emptyText}>{!API_URL ? "Live times will appear after the booking server is connected." : selectedDate ? "No slots are available on this date." : "Choose an available date to see times."}</Text>}</View>
-
-        <Text style={styles.sectionTitle}>4. Your Details</Text>
-        <View style={styles.detailsCard}><Text style={styles.detailsIntro}>We’ll use these details for your appointment and future QuincyFadez booking reminders.</Text><Text style={styles.inputLabel}>NAME</Text><TextInput value={customerName} onChangeText={setCustomerName} placeholder="Your Name" placeholderTextColor="#5E5E5E" autoCapitalize="words" style={styles.input} /><Text style={styles.inputLabel}>MOBILE NUMBER</Text><TextInput value={customerPhone} onChangeText={setCustomerPhone} placeholder="07..." placeholderTextColor="#5E5E5E" keyboardType="phone-pad" style={styles.input} /><Text style={styles.inputLabel}>EMAIL <Text style={styles.optional}>OPTIONAL</Text></Text><TextInput value={customerEmail} onChangeText={setCustomerEmail} placeholder="you@example.com" placeholderTextColor="#5E5E5E" keyboardType="email-address" autoCapitalize="none" style={styles.input} /><Text style={styles.inputLabel}>NOTES <Text style={styles.optional}>OPTIONAL</Text></Text><TextInput value={notes} onChangeText={setNotes} placeholder="Anything I should know before your cut?" placeholderTextColor="#5E5E5E" multiline maxLength={300} style={[styles.input, styles.notesInput]} /><View style={[styles.detailsStatus, detailsReady && styles.detailsStatusReady]}><Text style={[styles.detailsStatusText, detailsReady && styles.detailsStatusTextReady]}>{detailsReady ? "✓ DETAILS READY" : "NAME + MOBILE REQUIRED"}</Text></View></View>
-
-        <Text style={styles.sectionTitle}>5. Secure Your Booking</Text>
-        <View style={[styles.paymentCard, paymentVerified && styles.paymentCardVerified]}><View style={styles.paymentHeader}><View><Text style={styles.paymentEyebrow}>PAYMENT METHOD</Text><Text style={styles.paymentTitle}>{paymentVerified ? paymentLabel : "Card Verification Required"}</Text></View><View style={[styles.paymentBadge, paymentVerified && styles.paymentBadgeVerified]}><Text style={[styles.paymentBadgeText, paymentVerified && styles.paymentBadgeTextVerified]}>{paymentVerified ? "VERIFIED" : "REQUIRED"}</Text></View></View><Text style={styles.paymentText}>{paymentVerified ? "Your card is securely saved and verified with Stripe for booking protection. Verifying the card does not take payment for this appointment." : "Verify a payment method securely with Stripe. This setup saves the card for booking protection; it does not charge the appointment price."}</Text>{!paymentVerified ? <Pressable onPress={addPaymentMethod} disabled={paymentBusy || !clientKey || !API_URL} style={[styles.paymentButton, (paymentBusy || !API_URL) && styles.disabled]}><Text style={styles.paymentButtonText}>{paymentBusy ? "OPENING STRIPE…" : !API_URL ? "BOOKING SERVER REQUIRED" : "VERIFY PAYMENT METHOD"}</Text><Text style={styles.buttonArrow}>›</Text></Pressable> : null}</View>
-
-        <View style={styles.summaryCard}><Text style={styles.summaryEyebrow}>YOUR APPOINTMENT</Text><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Service</Text><Text style={styles.summaryValue}>{service.name}</Text></View><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Date</Text><Text style={styles.summaryValue}>{selectedDate ? formatDay(selectedDate).long : "Not Selected"}</Text></View><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Time</Text><Text style={styles.summaryValue}>{selectedSlot ? formatTime(selectedSlot) : "Not Selected"}</Text></View><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Booked For</Text><Text style={styles.summaryValue}>{customerName.trim() || "Not Entered"}</Text></View><View style={styles.summaryRow}><Text style={styles.summaryLabel}>Payment</Text><Text style={styles.summaryValue}>{paymentVerified ? "Card Verified · No Charge Yet" : "Verification Required"}</Text></View><View style={[styles.summaryRow, styles.summaryTotal]}><Text style={styles.totalLabel}>Service Value</Text><Text style={styles.totalPrice}>£{service.price}</Text></View></View>
-
-        {error ? <View style={styles.errorCard}><Text style={styles.errorText}>{error}</Text></View> : null}
-        <Pressable disabled={!canConfirm} onPress={confirmBooking} style={({ pressed }) => [styles.confirmButton, !canConfirm && styles.confirmDisabled, pressed && canConfirm && styles.confirmPressed]}><View><Text style={[styles.confirmText, !canConfirm && styles.confirmTextDisabled]}>{bookingBusy ? "SENDING…" : "REQUEST BOOKING"}</Text><Text style={[styles.confirmSubtext, !canConfirm && styles.confirmSubtextDisabled]}>{!API_URL ? "Secure booking connection required" : !selectedSlot ? "Choose your date and time" : !detailsReady ? "Add your name and mobile" : !paymentVerified ? "Verify your payment method" : "Send securely · no appointment charge taken now"}</Text></View>{bookingBusy ? <ActivityIndicator color="#090909" /> : <Text style={[styles.confirmArrow, !canConfirm && styles.confirmTextDisabled]}>›</Text>}</Pressable>
-        <View style={styles.trustRow}><Text style={styles.trustText}>✓ LIVE SLOTS</Text><Text style={styles.trustText}>✓ CARD VERIFIED</Text><Text style={styles.trustText}>✓ NO CHARGE YET</Text></View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: BG }, screen: { flex: 1, backgroundColor: BG }, content: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 34 },
-  header: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#151515" }, backButton: { width: 44, height: 44, justifyContent: "center" }, backIcon: { color: "#F5F5F5", fontSize: 34, lineHeight: 34 }, headerTitle: { color: "#F4F4F4", fontSize: 13, letterSpacing: 1.8, fontWeight: "700" }, headerSpacer: { width: 44 },
-  progressRow: { flexDirection: "row", justifyContent: "space-between", paddingTop: 15, paddingHorizontal: 3 }, progressItem: { alignItems: "center", flex: 1 }, progressDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#303030", marginBottom: 6 }, progressDotActive: { backgroundColor: GOLD_LIGHT }, progressLabel: { color: "#555", fontSize: 5.8, letterSpacing: 0.6 }, progressLabelActive: { color: "#A88D59" },
-  intro: { paddingTop: 24, paddingBottom: 20 }, eyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2, fontWeight: "800" }, title: { color: "#F5F5F5", fontSize: 31, lineHeight: 36, fontWeight: "700", marginTop: 8 }, subtitle: { color: MUTED, fontSize: 12.5, lineHeight: 19, marginTop: 9, maxWidth: 350 }, sectionTitle: { color: "#EFEFEF", fontSize: 17, fontWeight: "700", marginTop: 20, marginBottom: 11 },
-  serviceList: { gap: 9 }, serviceOption: { minHeight: 72, borderRadius: 17, borderWidth: 1, borderColor: BORDER, backgroundColor: PANEL, paddingHorizontal: 15, flexDirection: "row", alignItems: "center" }, serviceOptionActive: { borderColor: "#765B2E", backgroundColor: "#120F09" }, pressed: { opacity: 0.76 }, radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: "#4A4A4A", alignItems: "center", justifyContent: "center" }, radioOuterActive: { borderColor: GOLD_LIGHT }, radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: GOLD_LIGHT }, serviceCopy: { flex: 1, marginLeft: 12 }, serviceName: { color: "#E8E8E8", fontSize: 14.5, fontWeight: "650" }, serviceNameActive: { color: "#FFF4DC" }, serviceDuration: { color: MUTED, fontSize: 8.5, marginTop: 4 }, servicePrice: { color: GOLD_LIGHT, fontSize: 17, fontWeight: "800" },
-  loadingCard: { minHeight: 100, borderRadius: 18, backgroundColor: PANEL, borderWidth: 1, borderColor: BORDER, alignItems: "center", justifyContent: "center", gap: 9 }, loadingText: { color: MUTED, fontSize: 10 }, setupCard: { borderRadius: 18, borderWidth: 1, borderColor: "#3C2C1A", backgroundColor: "#0B0906", padding: 16 }, setupTitle: { color: GOLD_LIGHT, fontSize: 8.5, letterSpacing: 1.5, fontWeight: "800" }, setupText: { color: "#AAA39A", fontSize: 10.5, lineHeight: 17, marginTop: 8 },
-  dateStrip: { gap: 9, paddingRight: 8 }, dateCard: { width: 68, height: 100, borderRadius: 18, borderWidth: 1, borderColor: BORDER, backgroundColor: PANEL, alignItems: "center", justifyContent: "center" }, dateCardActive: { backgroundColor: GOLD, borderColor: GOLD_LIGHT }, dateCardDisabled: { opacity: 0.28 }, dateWeekday: { color: MUTED, fontSize: 7.5, letterSpacing: 1.2, fontWeight: "700" }, dateNumber: { color: "#F4F4F4", fontSize: 22, fontWeight: "750", marginTop: 4 }, dateMonth: { color: "#777", fontSize: 7.5, letterSpacing: 1, marginTop: 2 }, dateTextActive: { color: "#0A0A0A" }, availabilityDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: GOLD_LIGHT, marginTop: 7 }, availabilityDotActive: { backgroundColor: "#111" },
-  timePanel: { borderRadius: 19, borderWidth: 1, borderColor: BORDER, backgroundColor: "#090909", padding: 14 }, selectedDateLabel: { color: "#9B845A", fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800", marginBottom: 11 }, timeGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 }, timeChip: { width: "23%", minHeight: 44, borderRadius: 13, borderWidth: 1, borderColor: "#282828", backgroundColor: "#101010", alignItems: "center", justifyContent: "center" }, timeChipActive: { backgroundColor: GOLD, borderColor: GOLD_LIGHT }, timeText: { color: "#D7D7D7", fontSize: 11.5, fontWeight: "700" }, timeTextActive: { color: "#080808" }, emptyText: { color: MUTED, fontSize: 10.5, paddingVertical: 18, textAlign: "center" },
-  detailsCard: { borderRadius: 20, borderWidth: 1, borderColor: "#28241D", backgroundColor: "#090806", padding: 16 }, detailsIntro: { color: "#9D978D", fontSize: 10.5, lineHeight: 17, marginBottom: 14 }, inputLabel: { color: "#A98A54", fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800", marginTop: 10, marginBottom: 6 }, optional: { color: "#666", fontSize: 6.5 }, input: { minHeight: 50, borderRadius: 14, borderWidth: 1, borderColor: "#292929", backgroundColor: "#0F0F0F", color: "#F2F2F2", paddingHorizontal: 14, fontSize: 12 }, notesInput: { minHeight: 86, paddingTop: 13, textAlignVertical: "top" }, detailsStatus: { alignSelf: "flex-start", borderRadius: 12, borderWidth: 1, borderColor: "#333", paddingHorizontal: 9, paddingVertical: 6, marginTop: 14 }, detailsStatusReady: { borderColor: "#5B4727", backgroundColor: "#151006" }, detailsStatusText: { color: "#777", fontSize: 7, letterSpacing: 1, fontWeight: "800" }, detailsStatusTextReady: { color: GOLD_LIGHT },
-  paymentCard: { borderRadius: 19, borderWidth: 1, borderColor: "#2A251D", backgroundColor: "#0A0907", padding: 16 }, paymentCardVerified: { borderColor: "#4E3C20" }, paymentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }, paymentEyebrow: { color: "#A8874D", fontSize: 7.5, letterSpacing: 1.5, fontWeight: "800" }, paymentTitle: { color: "#F0F0F0", fontSize: 14.5, fontWeight: "700", marginTop: 6 }, paymentBadge: { borderRadius: 12, borderWidth: 1, borderColor: "#363636", paddingHorizontal: 8, paddingVertical: 5 }, paymentBadgeVerified: { borderColor: "#66502A", backgroundColor: "#151006" }, paymentBadgeText: { color: "#777", fontSize: 6.5, letterSpacing: 1, fontWeight: "800" }, paymentBadgeTextVerified: { color: GOLD_LIGHT }, paymentText: { color: "#999", fontSize: 10, lineHeight: 16, marginTop: 13 }, paymentButton: { minHeight: 52, borderRadius: 14, backgroundColor: GOLD, marginTop: 14, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, paymentButtonText: { color: "#080808", fontSize: 10, letterSpacing: 1, fontWeight: "900" }, buttonArrow: { color: "#080808", fontSize: 24 }, disabled: { opacity: 0.55 },
-  summaryCard: { marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: "#29251D", backgroundColor: "#090806", padding: 17 }, summaryEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 1.7, fontWeight: "800", marginBottom: 5 }, summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 9, gap: 14 }, summaryLabel: { color: MUTED, fontSize: 10.5 }, summaryValue: { color: "#E8E8E8", fontSize: 10.5, fontWeight: "650", textAlign: "right", flex: 1 }, summaryTotal: { borderTopWidth: 1, borderTopColor: "#1E1B16", marginTop: 4, paddingTop: 13 }, totalLabel: { color: "#F2F2F2", fontSize: 12.5, fontWeight: "700" }, totalPrice: { color: GOLD_LIGHT, fontSize: 19, fontWeight: "850" },
-  errorCard: { marginTop: 12, borderRadius: 13, borderWidth: 1, borderColor: "#4A2723", backgroundColor: "#130B0A", padding: 12 }, errorText: { color: "#E4A29A", fontSize: 9.5, lineHeight: 15 }, confirmButton: { minHeight: 66, borderRadius: 17, backgroundColor: GOLD, marginTop: 13, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, confirmDisabled: { backgroundColor: "#171717", borderWidth: 1, borderColor: "#282828" }, confirmPressed: { opacity: 0.87, transform: [{ scale: 0.995 }] }, confirmText: { color: "#090909", fontSize: 11.5, letterSpacing: 1, fontWeight: "900" }, confirmTextDisabled: { color: "#616161" }, confirmSubtext: { color: "#493514", fontSize: 8.5, marginTop: 4 }, confirmSubtextDisabled: { color: "#555" }, confirmArrow: { color: "#090909", fontSize: 29 }, trustRow: { marginTop: 13, minHeight: 44, borderRadius: 14, borderWidth: 1, borderColor: "#1D1D1D", backgroundColor: "#090909", flexDirection: "row", alignItems: "center", justifyContent: "space-around", paddingHorizontal: 5 }, trustText: { color: "#76684D", fontSize: 6.3, letterSpacing: 0.6, fontWeight: "800" },
-  confirmedContent: { flexGrow: 1, paddingHorizontal: 22, paddingTop: 60, paddingBottom: 36, backgroundColor: BG, alignItems: "center" }, confirmedMark: { width: 74, height: 74, borderRadius: 37, borderWidth: 1, borderColor: "#71562B", backgroundColor: "#171107", alignItems: "center", justifyContent: "center" }, pendingMark: { borderColor: "#79602F", backgroundColor: "#171208" }, confirmedTick: { color: GOLD_LIGHT, fontSize: 32, fontWeight: "800" }, pendingMarkText: { fontSize: 30, lineHeight: 30 }, confirmedEyebrow: { color: GOLD, fontSize: 8, letterSpacing: 2.2, fontWeight: "900", marginTop: 24 }, confirmedTitle: { color: "#F5F5F5", fontSize: 31, fontWeight: "750", marginTop: 8, textAlign: "center" }, confirmedSubtitle: { color: MUTED, fontSize: 11.5, lineHeight: 18, textAlign: "center", marginTop: 9, maxWidth: 320 }, ticketCard: { width: "100%", marginTop: 28, borderRadius: 21, borderWidth: 1, borderColor: "#3A2E1E", backgroundColor: "#0B0906", padding: 18 }, ticketRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, ticketLabel: { color: "#766A58", fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800" }, ticketValue: { color: "#F0F0F0", fontSize: 11, fontWeight: "650", textAlign: "right", flex: 1 }, pendingTicketValue: { color: GOLD_LIGHT }, ticketPrice: { color: GOLD_LIGHT, fontSize: 18, fontWeight: "850" }, ticketDivider: { height: 1, backgroundColor: "#211D17", marginVertical: 13 }, paymentClarifier: { width: "100%", marginTop: 14, borderRadius: 15, borderWidth: 1, borderColor: "#3C3323", backgroundColor: "#0B0906", padding: 14 }, paymentClarifierTitle: { color: GOLD_LIGHT, fontSize: 7.2, letterSpacing: 1.2, fontWeight: "900" }, paymentClarifierText: { color: "#9B958B", fontSize: 9.4, lineHeight: 15.5, marginTop: 7 }, confirmationNote: { width: "100%", marginTop: 14, borderRadius: 15, borderWidth: 1, borderColor: "#232323", backgroundColor: PANEL, padding: 14 }, pendingNote: { borderColor: "#49391E", backgroundColor: "#0D0A06" }, confirmationNoteTitle: { color: GOLD_LIGHT, fontSize: 7.5, letterSpacing: 1.4, fontWeight: "800" }, confirmationNoteText: { color: MUTED, fontSize: 9.5, lineHeight: 15.5, marginTop: 7 }, doneButton: { width: "100%", minHeight: 58, borderRadius: 16, backgroundColor: GOLD, alignItems: "center", justifyContent: "center", marginTop: 16 }, doneButtonText: { color: "#090909", fontSize: 11, letterSpacing: 1.3, fontWeight: "900" },
-});
+const s=StyleSheet.create({safe:{flex:1,backgroundColor:BG},content:{paddingHorizontal:18,paddingTop:12,paddingBottom:44},top:{minHeight:82,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},back:{width:48,height:48,justifyContent:"center"},backText:{fontSize:44,lineHeight:44,color:INK,fontWeight:"300"},spacer:{width:48},logo:{width:72,height:72,borderRadius:36,backgroundColor:"#0B0B0B",borderWidth:3,borderColor:GOLD,alignItems:"center",justifyContent:"center",shadowColor:"#000",shadowOpacity:.12,shadowRadius:8,shadowOffset:{width:0,height:3},elevation:3},logoText:{color:"#E8BD63",fontSize:24,fontWeight:"900"},brand:{color:INK,textAlign:"center",fontSize:27,fontWeight:"900",marginTop:7},subtitle:{color:MUTED,textAlign:"center",fontSize:15,marginTop:7,marginBottom:20},services:{gap:9,paddingRight:8,paddingBottom:16},service:{minWidth:142,borderRadius:16,borderWidth:1,borderColor:BORDER,backgroundColor:WHITE,padding:13},serviceActive:{borderColor:GOLD,backgroundColor:"#FFF8EA"},serviceName:{color:INK,fontSize:12,fontWeight:"800"},serviceMeta:{color:MUTED,fontSize:9.5,marginTop:4},goldText:{color:GOLD2},calendar:{backgroundColor:WHITE,borderRadius:22,borderWidth:1,borderColor:BORDER,padding:14,paddingVertical:18,shadowColor:"#000",shadowOpacity:.04,shadowRadius:14,shadowOffset:{width:0,height:5},elevation:2},calHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:16},arrow:{width:42,height:38,alignItems:"center",justifyContent:"center"},arrowText:{color:INK,fontSize:34,lineHeight:34},dim:{color:"#DDD"},month:{color:INK,fontSize:16,fontWeight:"900"},days:{flexDirection:"row",justifyContent:"space-between"},day:{flex:1,alignItems:"center"},weekday:{color:INK,fontSize:14,fontWeight:"700",marginBottom:8},bubble:{width:43,height:43,borderRadius:22,alignItems:"center",justifyContent:"center"},bubbleActive:{backgroundColor:GOLD},dayNum:{color:INK,fontSize:16,fontWeight:"700"},dayActive:{color:"#FFF",fontWeight:"900"},disabledDay:{color:"#D4D4D4"},loading:{minHeight:94,alignItems:"center",justifyContent:"center",gap:9},loadingText:{color:MUTED,fontSize:11},notice:{minHeight:94,borderRadius:15,backgroundColor:"#FAF8F2",alignItems:"center",justifyContent:"center",paddingHorizontal:18},noticeTitle:{color:GOLD2,fontSize:9,fontWeight:"900",letterSpacing:1.1},noticeText:{color:MUTED,fontSize:10.5,lineHeight:16,textAlign:"center",marginTop:7},times:{backgroundColor:WHITE,borderRadius:22,borderWidth:1,borderColor:BORDER,paddingHorizontal:16,paddingVertical:6,marginTop:16,shadowColor:"#000",shadowOpacity:.04,shadowRadius:14,shadowOffset:{width:0,height:5},elevation:2},group:{paddingVertical:17,borderBottomWidth:1,borderBottomColor:"#F0EEE9"},groupLast:{borderBottomWidth:0},groupTitle:{color:INK,fontSize:15,fontWeight:"900",marginBottom:13},grid:{flexDirection:"row",flexWrap:"wrap",gap:9},time:{minWidth:"30%",minHeight:52,borderRadius:14,borderWidth:1.5,borderColor:GOLD,backgroundColor:WHITE,alignItems:"center",justifyContent:"center",paddingHorizontal:10},timeActive:{backgroundColor:GOLD},timeText:{color:GOLD2,fontSize:13.5,fontWeight:"800"},timeTextActive:{color:"#FFF"},wait:{alignSelf:"flex-start",minHeight:48,borderRadius:13,backgroundColor:INK,justifyContent:"center",paddingHorizontal:18},waitText:{color:"#FFF",fontSize:11,fontWeight:"900",letterSpacing:.6},section:{color:INK,fontSize:17,fontWeight:"900",marginTop:24,marginBottom:11},card:{backgroundColor:WHITE,borderRadius:22,borderWidth:1,borderColor:BORDER,padding:16},label:{color:"#75684F",fontSize:8.5,fontWeight:"900",letterSpacing:1.1,marginTop:9,marginBottom:6},input:{minHeight:50,borderRadius:14,borderWidth:1,borderColor:BORDER,backgroundColor:"#FBFAF8",color:INK,paddingHorizontal:14,fontSize:12.5},notes:{minHeight:82,paddingTop:13,textAlignVertical:"top"},payTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"flex-start",gap:12},payTitle:{color:INK,fontSize:15,fontWeight:"800"},badge:{color:MUTED,fontSize:7,fontWeight:"900",borderWidth:1,borderColor:BORDER,borderRadius:10,paddingHorizontal:8,paddingVertical:5,overflow:"hidden"},badgeOn:{color:GOLD2,borderColor:"#D8BA79",backgroundColor:"#FFF7E5"},payCopy:{color:MUTED,fontSize:10.5,lineHeight:16,marginTop:12},blackButton:{minHeight:50,borderRadius:14,backgroundColor:INK,alignItems:"center",justifyContent:"center",marginTop:14},blackText:{color:"#FFF",fontSize:10.5,fontWeight:"900",letterSpacing:.8},buttonOff:{opacity:.35},summary:{backgroundColor:WHITE,borderRadius:22,borderWidth:1,borderColor:BORDER,paddingHorizontal:16,marginTop:17,width:"100%"},row:{minHeight:55,flexDirection:"row",alignItems:"center",justifyContent:"space-between",gap:16,borderBottomWidth:1,borderBottomColor:"#F0EEE9"},rowLast:{borderBottomWidth:0},rowLabel:{color:MUTED,fontSize:11},rowValue:{color:INK,fontSize:11,fontWeight:"800",flex:1,textAlign:"right"},error:{marginTop:14,borderRadius:14,borderWidth:1,borderColor:"#E8C4BD",backgroundColor:"#FFF4F2",padding:12},errorText:{color:"#9A4B3D",fontSize:10,lineHeight:15},primary:{minHeight:60,borderRadius:16,backgroundColor:GOLD,alignItems:"center",justifyContent:"center",marginTop:16,width:"100%"},primaryOff:{backgroundColor:"#D6D1C8"},primaryText:{color:"#FFF",fontSize:11.5,fontWeight:"900",letterSpacing:1},footer:{color:"#AAA39A",fontSize:8,letterSpacing:1.4,fontWeight:"800",textAlign:"center",marginTop:18},confirm:{flexGrow:1,paddingHorizontal:22,paddingTop:55,paddingBottom:36,backgroundColor:BG,alignItems:"center"},doneTitle:{color:INK,fontSize:30,fontWeight:"900",marginTop:28,textAlign:"center"}});

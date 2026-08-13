@@ -2,6 +2,7 @@ import React,{useEffect,useMemo,useState}from"react";
 import{ActivityIndicator,Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,TextInput,View}from"react-native";
 import AsyncStorage from"@react-native-async-storage/async-storage";
 import{useStripe}from"@stripe/stripe-react-native";
+import WaitingListScreen from"./WaitingListScreen";
 
 const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
 const GOLD="#D6BD7A",GOLD2="#F1DDA2",BG="#050505",WHITE="#101010",INK="#F5F5F5",MUTED="#929292",BORDER="#2A241A";
@@ -19,7 +20,7 @@ const splitSlots=slots=>({morning:slots.filter(s=>hour(s)<12),afternoon:slots.fi
 
 export default function BookingScreen({onBack,initialService="Haircut"}){
  const{initPaymentSheet,presentPaymentSheet}=useStripe();
- const[serviceName,setServiceName]=useState(initialService),[clientKey,setClientKey]=useState(""),[days,setDays]=useState([]),[date,setDate]=useState(""),[slot,setSlot]=useState(""),[week,setWeek]=useState(0),[loading,setLoading]=useState(false),[setup,setSetup]=useState(false),[error,setError]=useState(""),[name,setName]=useState(""),[phone,setPhone]=useState(""),[email,setEmail]=useState(""),[notes,setNotes]=useState(""),[verified,setVerified]=useState(false),[card,setCard]=useState(null),[payBusy,setPayBusy]=useState(false),[bookBusy,setBookBusy]=useState(false),[confirmed,setConfirmed]=useState(null);
+ const[serviceName,setServiceName]=useState(initialService),[clientKey,setClientKey]=useState(""),[days,setDays]=useState([]),[date,setDate]=useState(""),[slot,setSlot]=useState(""),[week,setWeek]=useState(0),[loading,setLoading]=useState(false),[setup,setSetup]=useState(false),[error,setError]=useState(""),[name,setName]=useState(""),[phone,setPhone]=useState(""),[email,setEmail]=useState(""),[notes,setNotes]=useState(""),[verified,setVerified]=useState(false),[card,setCard]=useState(null),[payBusy,setPayBusy]=useState(false),[bookBusy,setBookBusy]=useState(false),[confirmed,setConfirmed]=useState(null),[waitingListVisible,setWaitingListVisible]=useState(false);
  const service=useMemo(()=>SERVICES.find(x=>x.name===serviceName)||SERVICES[0],[serviceName]);
  const selectedDay=days.find(x=>x.date===date),slots=selectedDay?.slots||[],groups=useMemo(()=>splitSlots(slots),[slots]),visible=days.slice(week,week+7),ready=name.trim().length>=2&&phone.trim().length>=7,canBook=Boolean(slot&&verified&&ready&&!bookBusy);
 
@@ -34,8 +35,9 @@ export default function BookingScreen({onBack,initialService="Haircut"}){
  const addCard=async()=>{if(!clientKey||payBusy)return;setPayBusy(true);setError("");try{const{error:initError}=await initPaymentSheet({merchantDisplayName:"QuincyFadez",returnURL:"quincyfadez://stripe-redirect",appearance:{colors:{primary:GOLD,background:"#090909",componentBackground:"#111111",componentBorder:"#33291A",primaryText:"#F5F5F5",secondaryText:"#A0A0A0",componentText:"#F5F5F5",placeholderText:"#666666"},shapes:{borderRadius:14,borderWidth:1}},intentConfiguration:{mode:{currencyCode:"GBP"},confirmHandler}});if(initError)throw new Error(initError.message);const{error:presentError}=await presentPaymentSheet();if(presentError){if(presentError.code==="Canceled")return;throw new Error(presentError.message)}if(!await verify(clientKey))throw new Error("Your card has not been verified yet.")}catch(e){setError(e.message||"Payment setup could not be completed.")}finally{setPayBusy(false)}};
  const book=async()=>{if(!canBook)return;setBookBusy(true);setError("");try{const p={name:name.trim(),phone:phone.trim(),email:email.trim()};await AsyncStorage.setItem(PROFILE,JSON.stringify(p));const d=await request("/api/booking/appointments",{method:"POST",body:JSON.stringify({client_key:clientKey,service:serviceName,start_at:slot,customer_name:p.name,customer_phone:p.phone,customer_email:p.email||null,notes:notes.trim()||null})});setConfirmed(d)}catch(e){setError(e.message);if(/available|booked/i.test(e.message))await load()}finally{setBookBusy(false)}};
  const shift=n=>setWeek(Math.max(0,Math.min(Math.max(0,days.length-7),week+n*7)));
- const waitlist=()=>setError(API?"The QuincyFadez waitlist is being connected next. No request has been sent yet.":"Live booking must be connected before the waitlist can open.");
+ const waitlist=()=>{if(!API){setError("Live booking must be connected before the waiting list can open.");return}setError("");setWaitingListVisible(true)};
 
+ if(waitingListVisible)return <WaitingListScreen onBack={()=>setWaitingListVisible(false)}/>;
  if(confirmed)return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" backgroundColor={BG}/><ScrollView contentContainerStyle={s.confirm}><Logo/><Text style={s.brand}>QuincyFadez</Text><Text style={s.doneTitle}>{confirmed.status==="pending"?"Booking Request Sent":"You’re Booked"}</Text><Text style={s.subtitle}>{dayLabel(confirmed.start_at.slice(0,10)).long} · {timeLabel(confirmed.start_at)}</Text><View style={s.summary}><Row l="Service" v={confirmed.service}/><Row l="Service Value" v={`£${confirmed.price}`}/><Row l="Status" v={confirmed.status==="pending"?"Awaiting Approval":"Confirmed"} last/></View><Pressable onPress={onBack} style={s.primary}><Text style={s.primaryText}>DONE</Text></Pressable></ScrollView></SafeAreaView>;
 
  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" backgroundColor={BG}/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

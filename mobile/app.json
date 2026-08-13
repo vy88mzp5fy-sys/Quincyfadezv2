@@ -6,18 +6,14 @@
     "orientation": "portrait",
     "scheme": "quincyfadez",
     "userInterfaceStyle": "dark",
-    "icon": "./assets/icon.png",
     "plugins": [
       [
         "expo-splash-screen",
         {
           "backgroundColor": "#050505",
-          "image": "./assets/icon.png",
-          "imageWidth": 180,
           "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#050505",
-            "image": "./assets/icon.png"
+            "backgroundColor": "#050505"
           }
         }
       ],

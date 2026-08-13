@@ -23,7 +23,12 @@ jobs:
         run: |
           grep -v '^emergentintegrations==' requirements.txt > requirements-ci.txt
           pip install -r requirements-ci.txt
-      - run: pytest -q
+      - name: Compile backend modules
+        run: python -m py_compile server.py admin_api.py payment_policy.py
+      - name: Run guarded payment policy tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_payment_policy.py
 
   mobile-checks:
     runs-on: ubuntu-latest
@@ -37,7 +42,8 @@ jobs:
           node-version: '20'
       - run: npm install --no-audit --no-fund
       - run: npx expo config --type public
-      - run: npx expo export --platform ios --output-dir dist-test
+      - name: Bundle iOS JavaScript
+        run: npx expo export --platform ios --output-dir dist-test
         env:
           EXPO_PUBLIC_API_URL: https://example.invalid
           EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder

@@ -1,8 +1,9 @@
 """QuincyFadez production API runtime.
 
 Deploy this module as ``runtime:app``. It reuses the complete API assembled in
-``app.py`` and exposes a protected scheduled notification cycle for Vercel Cron.
-Immediate booking/payment requests remain independent from notification delivery.
+``app.py``, adds the owner waiting-list API, and exposes a protected scheduled
+notification cycle for Vercel Cron. Immediate booking/payment requests remain
+independent from notification delivery.
 """
 
 from datetime import datetime, timezone
@@ -11,8 +12,11 @@ import os
 
 from fastapi import Header, HTTPException
 
+from admin_waiting_list_api import build_admin_waiting_list_router
 from app import app, db
 from notification_worker import process_notification_cycle
+
+app.include_router(build_admin_waiting_list_router(db), prefix="/api")
 
 
 @app.on_event("startup")

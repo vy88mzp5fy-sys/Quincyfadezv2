@@ -1,0 +1,41 @@
+name: Waiting List & Automation Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  waiting-list-automation:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --upgrade pip
+      - name: Install test dependencies
+        run: |
+          grep -v '^emergentintegrations==' requirements.txt > requirements-ci.txt
+          pip install -r requirements-ci.txt
+      - name: Compile automation modules
+        run: >-
+          python -m py_compile
+          notification_events.py
+          notification_preferences.py
+          push_delivery.py
+          booking_notifications.py
+          notification_worker.py
+          waiting_list_service.py
+          waiting_list_alerts.py
+          waiting_list_api.py
+          runtime.py
+      - name: Run waiting list and notification tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_notification_preferences.py tests/test_waiting_list_service.py

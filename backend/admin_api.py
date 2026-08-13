@@ -83,13 +83,19 @@ class AdminClientUpdate(BaseModel):
     block_reason: Optional[str] = Field(default=None, max_length=300)
 
 
-def build_admin_router(db, services, get_booking_settings, london):
+def build_admin_router(db, services, get_booking_settings, london, get_payment_capabilities=None):
     router = APIRouter(prefix="/admin", tags=["admin"])
     admin_pin_hash = os.environ.get("ADMIN_PIN_SHA256", "").strip().lower()
     session_hours = int(os.environ.get("ADMIN_SESSION_HOURS", "168"))
 
     def hash_value(value: str) -> str:
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    def payment_capabilities() -> dict:
+        if not get_payment_capabilities:
+            return {"deposit_capture": False, "cancellation_fee_capture": False}
+        capabilities = get_payment_capabilities()
+        return capabilities.as_dict() if hasattr(capabilities, "as_dict") else dict(capabilities or {})
 
     def merge_admin_defaults(settings: dict) -> dict:
         merged = {**ADMIN_SETTINGS_DEFAULTS, **(settings or {})}
@@ -101,6 +107,10 @@ def build_admin_router(db, services, get_booking_settings, london):
             **ADMIN_SETTINGS_DEFAULTS["automations"],
             **((settings or {}).get("automations") or {}),
         }
+        capabilities = payment_capabilities()
+        merged["payment_capabilities"] = capabilities
+        merged["deposit_capture_live"] = bool(capabilities.get("deposit_capture", False))
+        merged["cancellation_fee_capture_live"] = bool(capabilities.get("cancellation_fee_capture", False))
         return merged
 
     async def full_settings() -> dict:

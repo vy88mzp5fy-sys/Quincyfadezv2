@@ -13,8 +13,8 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CustomerSheet, CustomerSheetError } from "@stripe/stripe-react-native";
 
-const GOLD = "#C99B4A";
-const GOLD_LIGHT = "#E7C77A";
+const GOLD = "#D6BD7A";
+const GOLD_LIGHT = "#F1DDA2";
 const BG = "#050505";
 const PANEL = "#0D0D0D";
 const BORDER = "#242424";

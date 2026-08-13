@@ -14,7 +14,7 @@ import BookingScreen from "./src/BookingScreen";
 import GalleryScreen from "./src/GalleryScreen";
 import ReviewsScreen from "./src/ReviewsScreen";
 import AccountScreen from "./src/AccountScreen";
-import AdminScreen from "./src/AdminScreen";
+import AdminNotificationsShell from "./src/AdminNotificationsShell";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
@@ -80,7 +80,7 @@ export default function App() {
     if(screen==="gallery")return <GalleryScreen onBack={goHome}/>;
     if(screen==="reviews")return <ReviewsScreen onBack={goHome}/>;
     if(screen==="account")return <AccountScreen onBack={goHome}/>;
-    if(screen==="admin")return <AdminScreen onExit={goHome}/>;
+    if(screen==="admin")return <AdminNotificationsShell onExit={goHome}/>;
     return <HomeScreen onServices={()=>setScreen("services")} onBooking={openBooking} onGallery={()=>setScreen("gallery")} onReviews={()=>setScreen("reviews")} onAccount={()=>setScreen("account")} onAdmin={()=>setScreen("admin")}/>;
   };
   const showBottomNav = screen !== "services" && screen !== "admin";

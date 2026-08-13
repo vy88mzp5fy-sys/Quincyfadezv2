@@ -26,13 +26,15 @@ async function syncIdentity() {
     email: profile.email || "",
   };
 
-  const currentKey = await AsyncStorage.getItem(CLIENT_KEY_STORAGE);
-  if (currentKey === clientKey) return;
-
-  await AsyncStorage.multiSet([
-    [CLIENT_KEY_STORAGE, clientKey],
-    [PROFILE_STORAGE, JSON.stringify(bookingProfile)],
+  const [currentKey, currentProfile] = await Promise.all([
+    AsyncStorage.getItem(CLIENT_KEY_STORAGE),
+    AsyncStorage.getItem(PROFILE_STORAGE),
   ]);
+  const nextProfile = JSON.stringify(bookingProfile);
+  const updates = [];
+  if (currentKey !== clientKey) updates.push([CLIENT_KEY_STORAGE, clientKey]);
+  if (currentProfile !== nextProfile) updates.push([PROFILE_STORAGE, nextProfile]);
+  if (updates.length) await AsyncStorage.multiSet(updates);
 }
 
 export default function ClientIdentitySync() {

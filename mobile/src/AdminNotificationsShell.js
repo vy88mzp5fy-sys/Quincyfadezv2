@@ -5,6 +5,7 @@ import AdminScreen from "./AdminScreen";
 import PendingBookingsPanel from "./PendingBookingsPanel";
 import AdminSchedulePanel from "./AdminSchedulePanel";
 import AdminTodayFocus from "./AdminTodayFocus";
+import AdminAppointmentDetails from "./AdminAppointmentDetails";
 
 const GOLD = "#C99B4A";
 const GOLD_LIGHT = "#E7C77A";
@@ -15,6 +16,8 @@ export default function AdminNotificationsShell({ onExit }) {
   const [visible, setVisible] = useState(false);
   const [scheduleVisible, setScheduleVisible] = useState(false);
   const [todayVisible, setTodayVisible] = useState(false);
+  const [appointmentVisible, setAppointmentVisible] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [requests, setRequests] = useState([]);
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -98,6 +101,8 @@ export default function AdminNotificationsShell({ onExit }) {
     const token = await getToken();
     if (!token) return;
     setAdminToken(token);
+    setAppointmentVisible(false);
+    setSelectedAppointment(null);
     setTodayVisible(false);
     setScheduleVisible(true);
   };
@@ -105,6 +110,18 @@ export default function AdminNotificationsShell({ onExit }) {
   const openToday = async () => {
     setTodayVisible(true);
     await loadOverview();
+  };
+
+  const openAppointment = (booking) => {
+    if (!booking?.id) return;
+    setSelectedAppointment(booking);
+    setAppointmentVisible(true);
+  };
+
+  const closeAppointment = () => {
+    setAppointmentVisible(false);
+    setSelectedAppointment(null);
+    loadOverview({ quiet: true });
   };
 
   const updateRequest = async (booking, status) => {
@@ -176,7 +193,19 @@ export default function AdminNotificationsShell({ onExit }) {
           <Pressable onPress={() => setTodayVisible(false)} style={styles.todayClose}><Text style={styles.todayCloseText}>×</Text></Pressable>
         </View>
         <ScrollView contentContainerStyle={styles.todayContent} showsVerticalScrollIndicator={false}>
-          <AdminTodayFocus overview={overview} onOpenSchedule={openSchedule} onRefresh={() => loadOverview()} loading={todayLoading} />
+          <AdminTodayFocus overview={overview} onOpenSchedule={openSchedule} onOpenNext={openAppointment} onRefresh={() => loadOverview()} loading={todayLoading} />
+        </ScrollView>
+      </View>
+    </Modal>
+    <Modal visible={appointmentVisible} animationType="slide" onRequestClose={closeAppointment}>
+      <View style={styles.appointmentModal}>
+        <View style={styles.todayHeader}>
+          <View><Text style={styles.todayEyebrow}>TODAY · NEXT APPOINTMENT</Text><Text style={styles.todayTitle}>Appointment</Text></View>
+          <Pressable onPress={closeAppointment} style={styles.todayClose}><Text style={styles.todayCloseText}>×</Text></Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.appointmentContent} showsVerticalScrollIndicator={false}>
+          {selectedAppointment ? <AdminAppointmentDetails booking={selectedAppointment} onClose={closeAppointment} /> : null}
+          <Pressable onPress={openSchedule} style={styles.scheduleFromAppointment}><Text style={styles.scheduleFromAppointmentText}>OPEN FULL SCHEDULE</Text><Text style={styles.scheduleFromAppointmentArrow}>›</Text></Pressable>
         </ScrollView>
       </View>
     </Modal>
@@ -203,10 +232,15 @@ const styles = StyleSheet.create({
   badgeText:{color:"#090909",fontSize:7,fontWeight:"900"},
   pressed:{opacity:.72,transform:[{scale:.97}]},
   todayModal:{flex:1,backgroundColor:"#050505"},
+  appointmentModal:{flex:1,backgroundColor:"#050505"},
   todayHeader:{minHeight:78,paddingHorizontal:18,borderBottomWidth:1,borderBottomColor:"#191919",flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
   todayEyebrow:{color:GOLD,fontSize:7,letterSpacing:1.6,fontWeight:"900"},
   todayTitle:{color:"#F4F4F4",fontSize:22,fontWeight:"750",marginTop:4},
   todayClose:{width:40,height:40,borderRadius:20,borderWidth:1,borderColor:"#242424",backgroundColor:"#0D0D0D",alignItems:"center",justifyContent:"center"},
   todayCloseText:{color:GOLD_LIGHT,fontSize:24},
   todayContent:{paddingHorizontal:18,paddingBottom:42},
+  appointmentContent:{paddingHorizontal:18,paddingBottom:42},
+  scheduleFromAppointment:{minHeight:50,borderRadius:13,backgroundColor:GOLD,marginTop:12,paddingHorizontal:14,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
+  scheduleFromAppointmentText:{color:"#090909",fontSize:7,letterSpacing:.9,fontWeight:"900"},
+  scheduleFromAppointmentArrow:{color:"#090909",fontSize:22,fontWeight:"900"},
 });

@@ -27,6 +27,12 @@ class ClientPasswordChange(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+class ClientProfileUpdate(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    phone: str = Field(min_length=7, max_length=30)
+    email: EmailStr
+
+
 def build_client_auth_router(db):
     router = APIRouter(prefix="/client", tags=["client-auth"])
     session_hours = int(os.environ.get("CLIENT_SESSION_HOURS", "720"))
@@ -133,6 +139,35 @@ def build_client_auth_router(db):
     async def me(authorization: Optional[str] = Header(default=None)):
         account = await _require_client(authorization)
         return {"client_key": account["client_key"], "profile": _public_profile(account)}
+
+    @router.put("/me")
+    async def update_me(input: ClientProfileUpdate, authorization: Optional[str] = Header(default=None)):
+        _, session = await _require_session(authorization)
+        account = await db.client_accounts.find_one({"client_key": session["client_key"]}, {"_id": 0})
+        if not account:
+            raise HTTPException(status_code=401, detail="Client account not found.")
+        name = input.name.strip()
+        phone = input.phone.strip()
+        email = str(input.email).strip().lower()
+        if len(name) < 2 or len(phone) < 7:
+            raise HTTPException(status_code=400, detail="Add your name and a valid mobile number.")
+        existing = await db.client_accounts.find_one({"email": email, "client_key": {"$ne": account["client_key"]}}, {"_id": 1})
+        if existing:
+            raise HTTPException(status_code=409, detail="That email is already linked to another QuincyFadez account.")
+        now = datetime.now(timezone.utc)
+        result = await db.client_accounts.update_one(
+            {"client_key": account["client_key"]},
+            {"$set": {"name": name, "phone": phone, "email": email, "updated_at": now}},
+        )
+        if result.matched_count != 1:
+            raise HTTPException(status_code=409, detail="Your profile could not be updated. Please try again.")
+        await db.client_profiles.update_one(
+            {"client_key": account["client_key"]},
+            {"$set": {"client_key": account["client_key"], "name": name, "phone": phone, "email": email, "updated_at": now.isoformat()}, "$setOnInsert": {"created_at": now.isoformat()}},
+            upsert=True,
+        )
+        updated = {**account, "name": name, "phone": phone, "email": email}
+        return {"client_key": account["client_key"], "profile": _public_profile(updated)}
 
     @router.post("/change-password")
     async def change_password(input: ClientPasswordChange, authorization: Optional[str] = Header(default=None)):

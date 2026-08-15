@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useState}from"react";
 import{ActivityIndicator,Linking,Modal,Pressable,SafeAreaView,Share,StyleSheet,Text,View}from"react-native";
 import AsyncStorage from"@react-native-async-storage/async-storage";
-import MockupAdminScreenV4 from"./MockupAdminScreenV4";
+import MockupAdminScreenV5 from"./MockupAdminScreenV5";
 import{M,Marble,cardShadow,shadow}from"./MockupTheme";
 
 const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
@@ -22,7 +22,7 @@ export default function AdminPremiumShell({onExit}){
  const update=async(key,value)=>{if(saving)return;setSaving(key);setError("");try{const d=await request("/api/admin/settings",{method:"PUT",body:JSON.stringify({[key]:value})});setSettings(d.settings||settings)}catch(e){setError(e.message)}finally{setSaving("")}};
  const next=overview?.next_booking||null;
  const number=useMemo(()=>waNumber(next?.customer_phone),[next]);
- return <View style={s.shell}><MockupAdminScreenV4 onExit={onExit}/><Pressable onPress={()=>setOpen(true)} style={s.fab}><Text style={s.fabIcon}>⚡</Text><Text style={s.fabText}>QUICK</Text></Pressable>
+ return <View style={s.shell}><MockupAdminScreenV5 onExit={onExit}/><Pressable onPress={()=>setOpen(true)} style={s.fab}><Text style={s.fabIcon}>⚡</Text><Text style={s.fabText}>QUICK</Text></Pressable>
   <Modal transparent visible={open} animationType="slide" onRequestClose={()=>setOpen(false)}>
    <Pressable onPress={()=>setOpen(false)} style={s.backdrop}><Pressable onPress={()=>{}} style={s.sheetWrap}><Marble style={s.sheet}><SafeAreaView><View style={s.handle}/><View style={s.sheetHead}><View style={{flex:1}}><Text style={s.kicker}>OWNER COMMAND CENTRE</Text><Text style={s.title}>Quick Actions</Text><Text style={s.subtitle}>The things you’re most likely to need, without digging through menus.</Text></View><Pressable onPress={()=>setOpen(false)} style={s.close}><Text style={s.closeText}>×</Text></Pressable></View>
     {loading?<View style={s.loading}><ActivityIndicator color={M.gold}/><Text style={s.loadingText}>Loading your live business controls…</Text></View>:<>

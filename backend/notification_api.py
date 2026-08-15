@@ -5,6 +5,7 @@ import hashlib
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from notification_preferences import normalize_client_preferences
 from push_delivery import send_client_push
 
 
@@ -15,6 +16,14 @@ class PushDeviceRegister(BaseModel):
 
 class PushDeviceRemove(BaseModel):
     expo_push_token: str = Field(min_length=20, max_length=255)
+
+
+class ClientNotificationPreferences(BaseModel):
+    confirmations: bool = True
+    reminders: bool = True
+    reschedule: bool = True
+    waitlist: bool = True
+    reviews: bool = True
 
 
 def build_notification_router(db):
@@ -73,13 +82,33 @@ def build_notification_router(db):
         count = await db.push_devices.count_documents({"client_key": session["client_key"], "enabled": True})
         return {"push_registered": count > 0, "registered_devices": count}
 
+    @router.get("/preferences")
+    async def get_preferences(authorization: Optional[str] = Header(default=None)):
+        session = await require_client(authorization)
+        saved = await db.client_notification_preferences.find_one(
+            {"client_key": session["client_key"]},
+            {"_id": 0, "client_key": 0, "updated_at": 0},
+        ) or {}
+        return {"preferences": normalize_client_preferences(saved)}
+
+    @router.put("/preferences")
+    async def update_preferences(input: ClientNotificationPreferences, authorization: Optional[str] = Header(default=None)):
+        session = await require_client(authorization)
+        preferences = normalize_client_preferences(input.model_dump())
+        await db.client_notification_preferences.update_one(
+            {"client_key": session["client_key"]},
+            {"$set": {"client_key": session["client_key"], **preferences, "updated_at": datetime.now(timezone.utc)}},
+            upsert=True,
+        )
+        return {"preferences": preferences}
+
     @router.post("/test-push")
     async def test_push(authorization: Optional[str] = Header(default=None)):
         session = await require_client(authorization)
         delivery = await send_client_push(
             db,
             session["client_key"],
-            "QuincyFadez Notifications Are On ✂️",
+            "QuincyFadez Notifications Are On",
             "Your device is connected and ready for booking updates, reminders and waiting-list alerts.",
             {"event": "push_test"},
         )

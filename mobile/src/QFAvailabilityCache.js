@@ -4,6 +4,7 @@ const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
 const TTL=10*60*1000;
 const SERVICES=["Haircut","Haircut & Beard","Shape Up","Beard Trim"];
 const memory=new Map();
+const inflight=new Map();
 const keyFor=s=>`quincyfadez.availability.${encodeURIComponent(s)}`;
 const read=r=>r.json().catch(()=>({}));
 
@@ -27,13 +28,18 @@ export async function readCachedAvailability(service){
 
 export async function fetchAvailability(service,days=21){
   if(!API)return null;
-  const r=await fetch(`${API}/api/booking/availability?service=${encodeURIComponent(service)}&days=${days}`);
-  const data=await read(r);
-  if(!r.ok)throw new Error(typeof data.detail==="string"?data.detail:"Availability could not be loaded.");
-  const cached={data,savedAt:Date.now()};
-  memory.set(service,cached);
-  AsyncStorage.setItem(keyFor(service),JSON.stringify(cached)).catch(()=>{});
-  return data;
+  if(inflight.has(service))return inflight.get(service);
+  const job=(async()=>{
+    const r=await fetch(`${API}/api/booking/availability?service=${encodeURIComponent(service)}&days=${days}`);
+    const data=await read(r);
+    if(!r.ok)throw new Error(typeof data.detail==="string"?data.detail:"Availability could not be loaded.");
+    const cached={data,savedAt:Date.now()};
+    memory.set(service,cached);
+    AsyncStorage.setItem(keyFor(service),JSON.stringify(cached)).catch(()=>{});
+    return data;
+  })();
+  inflight.set(service,job);
+  try{return await job}finally{inflight.delete(service)}
 }
 
 export async function getAvailability(service,days=21,{refresh=true}={}){
@@ -48,7 +54,11 @@ export async function getAvailability(service,days=21,{refresh=true}={}){
 
 export function primeAvailability(days=21){
   if(!API)return Promise.resolve([]);
-  return Promise.allSettled(SERVICES.map(service=>fetchAvailability(service,days)));
+  return Promise.allSettled(SERVICES.map(async service=>{
+    const cached=await readCachedAvailability(service);
+    if(cached){fetchAvailability(service,days).catch(()=>{});return cached}
+    return fetchAvailability(service,days);
+  }));
 }
 
 export {SERVICES};

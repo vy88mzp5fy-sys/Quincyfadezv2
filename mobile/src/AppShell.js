@@ -1,1 +1,1 @@
-export { default } from "./MockupClientShell";
+export { default } from "./MockupClientShellV2";

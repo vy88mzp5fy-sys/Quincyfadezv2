@@ -92,8 +92,8 @@ export function Eyebrow({children,style}){return <Text style={[s.eyebrow,style]}
 
 const s=StyleSheet.create({
   marble:{flex:1,backgroundColor:M.bg,overflow:"hidden"},
-  marbleImage:{opacity:1},
-  marbleShade:{...StyleSheet.absoluteFillObject,backgroundColor:"rgba(0,0,0,.035)"},
+  marbleImage:{opacity:.94},
+  marbleShade:{...StyleSheet.absoluteFillObject,backgroundColor:"rgba(0,0,0,.075)"},
   logo:{borderWidth:1,borderColor:"rgba(214,189,122,.82)",backgroundColor:"#070707",alignItems:"center",justifyContent:"center",...shadow},
   logoRing:{borderWidth:1,borderColor:"rgba(228,207,149,.38)",overflow:"hidden",alignItems:"center",justifyContent:"center"},
   crown:{position:"absolute",top:-14,alignSelf:"center"},

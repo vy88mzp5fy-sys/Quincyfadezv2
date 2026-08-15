@@ -1,0 +1,10 @@
+import React from"react";
+import{Pressable,StyleSheet,Text,View}from"react-native";
+import{M,cardShadow}from"./MockupTheme";
+
+export function ClientHeader({title,onBack,rightIcon="☰",onRight,subtitle}){return <><View style={s.header}><Pressable onPress={onBack} style={s.side}><Text style={s.back}>‹</Text></Pressable><Text style={s.title}>{title}</Text><Pressable disabled={!onRight} onPress={onRight} style={s.side}><Text style={s.right}>{rightIcon}</Text></Pressable></View>{subtitle?<Text style={s.subtitle}>{subtitle}</Text>:null}</>}
+export function ClientSection({title,action,onAction}){return <View style={s.section}><Text style={s.sectionTitle}>{title}</Text>{action?<Pressable onPress={onAction}><Text style={s.sectionAction}>{action}</Text></Pressable>:null}</View>}
+export function ClientCard({children,style}){return <View style={[s.card,style]}>{children}</View>}
+export function MiniIcon({children}){return <View style={s.icon}><Text style={s.iconText}>{children}</Text></View>}
+
+const s=StyleSheet.create({header:{height:66,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},side:{width:50,height:50,alignItems:"center",justifyContent:"center"},back:{color:M.text2,fontSize:41,fontWeight:"300",lineHeight:43},title:{color:M.text,fontSize:27,fontWeight:"700"},right:{color:M.goldSoft,fontSize:23},subtitle:{color:M.muted,textAlign:"center",fontSize:13.5,lineHeight:19,marginTop:-2,marginBottom:18,paddingHorizontal:18},section:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:27,marginBottom:10},sectionTitle:{color:M.text2,fontSize:15.5,fontWeight:"800"},sectionAction:{color:M.gold,fontSize:12.5},card:{borderRadius:15,borderWidth:1,borderColor:"rgba(214,189,122,.24)",backgroundColor:"rgba(16,16,15,.93)",...cardShadow},icon:{width:42,height:42,borderRadius:21,borderWidth:1,borderColor:M.goldDark,backgroundColor:M.panel3,alignItems:"center",justifyContent:"center"},iconText:{color:M.goldSoft,fontSize:18,fontWeight:"800"}});

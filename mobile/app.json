@@ -7,6 +7,14 @@
     "orientation": "portrait",
     "scheme": "quincyfadez",
     "userInterfaceStyle": "dark",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9bbf21b8-c05e-4e33-9002-37f05775cdd7",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "plugins": [
       [
         "expo-splash-screen",

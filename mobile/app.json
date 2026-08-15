@@ -7,6 +7,8 @@
     "orientation": "portrait",
     "scheme": "quincyfadez",
     "userInterfaceStyle": "dark",
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#050505",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -20,16 +22,19 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#050505",
+          "image": "./assets/icon.png",
+          "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
-            "backgroundColor": "#050505"
+            "backgroundColor": "#050505",
+            "image": "./assets/icon.png"
           }
         }
       ],
       [
         "expo-notifications",
         {
-          "color": "#D6BD7A",
+          "color": "#E0AE4F",
           "defaultChannel": "appointments"
         }
       ],

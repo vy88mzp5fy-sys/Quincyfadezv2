@@ -1,25 +1,24 @@
-import React,{useEffect,useState}from"react";
-import{Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,View}from"react-native";
-import AsyncStorage from"@react-native-async-storage/async-storage";
-import{BrandLogo,LuxuryBackButton,M,Marble,cardShadow}from"./MockupTheme";
+import React,{useEffect,useState} from "react";
+import {Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,View} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {M,Marble,Surface} from "./QFTheme";
+import {ClientHeader} from "./ClientLuxuryUI";
 
 const PREFS="quincyfadez.clientPrefs";
 const defaults={confirmations:true,reminders:true,reschedule:true,waitlist:true,reviews:true};
-
 function Toggle({value,onPress}){return <Pressable onPress={onPress} style={[s.toggle,value&&s.toggleOn]}><View style={[s.knob,value&&s.knobOn]}/></Pressable>}
-function Row({title,sub,value,onPress,last}){return <View style={[s.row,!last&&s.rowDivider]}><View style={{flex:1,paddingRight:14}}><Text style={s.rowTitle}>{title}</Text><Text style={s.rowSub}>{sub}</Text></View><Toggle value={value} onPress={onPress}/></View>}
+function Row({icon,title,sub,value,onPress,last=false}){return <View style={[s.row,!last&&s.line]}><View style={s.icon}><Text style={s.iconText}>{icon}</Text></View><View style={{flex:1}}><Text style={s.rowTitle}>{title}</Text><Text style={s.rowSub}>{sub}</Text></View><Toggle value={value} onPress={onPress}/></View>}
 
 export default function ClientNotificationsScreen({onBack}){
- const[prefs,setPrefs]=useState(defaults);
- useEffect(()=>{AsyncStorage.getItem(PREFS).then(v=>{if(v)try{setPrefs({...defaults,...JSON.parse(v)})}catch(_){}})},[]);
- const toggle=k=>setPrefs(p=>{const n={...p,[k]:!p[k]};AsyncStorage.setItem(PREFS,JSON.stringify(n));return n});
- return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-   <View style={s.header}><LuxuryBackButton onPress={onBack}/><View style={s.headerLogo}><BrandLogo size={66} compact/></View><View style={s.headerSpacer}/></View>
-   <Text style={s.title}>NOTIFICATIONS</Text><Text style={s.subtitle}>Choose which QuincyFadez appointment updates you want to receive.</Text>
-   <View style={s.card}><Row title="Booking Confirmations" sub="Confirmation updates when a booking is accepted." value={prefs.confirmations} onPress={()=>toggle("confirmations")}/><Row title="Appointment Reminders" sub="Helpful reminders before your upcoming appointment." value={prefs.reminders} onPress={()=>toggle("reminders")}/><Row title="Reschedule Updates" sub="Be notified if an appointment time changes." value={prefs.reschedule} onPress={()=>toggle("reschedule")}/><Row title="Waiting List Alerts" sub="Hear when a suitable cancelled slot becomes available." value={prefs.waitlist} onPress={()=>toggle("waitlist")}/><Row title="Review Reminders" sub="A simple reminder after a completed visit." value={prefs.reviews} onPress={()=>toggle("reviews")} last/></View>
+  const[prefs,setPrefs]=useState(defaults),[saved,setSaved]=useState(false);
+  useEffect(()=>{AsyncStorage.getItem(PREFS).then(v=>{if(v)try{setPrefs({...defaults,...JSON.parse(v)})}catch(_){}})},[]);
+  const toggle=k=>setPrefs(p=>{const n={...p,[k]:!p[k]};AsyncStorage.setItem(PREFS,JSON.stringify(n)).then(()=>{setSaved(true);setTimeout(()=>setSaved(false),1300)});return n});
+  return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ClientHeader title="Notifications" subtitle="Choose which appointment updates and useful reminders you want to receive." onBack={onBack}/>
+    {saved?<View style={s.saved}><Text style={s.savedText}>Saved</Text></View>:null}
+    <Surface style={s.card}><Row icon="✓" title="Booking confirmations" sub="Know when a booking request is accepted or confirmed." value={prefs.confirmations} onPress={()=>toggle("confirmations")}/><Row icon="◷" title="Appointment reminders" sub="Helpful reminders before your upcoming appointment." value={prefs.reminders} onPress={()=>toggle("reminders")}/><Row icon="↻" title="Reschedule updates" sub="Be alerted if an appointment time changes." value={prefs.reschedule} onPress={()=>toggle("reschedule")}/><Row icon="◉" title="Waitlist alerts" sub="Hear quickly when a suitable cancellation opens up." value={prefs.waitlist} onPress={()=>toggle("waitlist")}/><Row icon="☆" title="Review reminders" sub="A light reminder after a completed visit." value={prefs.reviews} onPress={()=>toggle("reviews")} last/></Surface>
+    <Surface style={s.note}><View style={s.noteMark}><Text style={s.noteMarkText}>QF</Text></View><View style={{flex:1}}><Text style={s.noteTitle}>Only useful updates</Text><Text style={s.noteText}>QuincyFadez notifications are designed around your booking, not marketing noise.</Text></View></Surface>
   </ScrollView></SafeAreaView></Marble>;
 }
 
-const s=StyleSheet.create({
- safe:{flex:1},content:{paddingHorizontal:22,paddingTop:12,paddingBottom:110},header:{height:76,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},headerLogo:{flex:1,alignItems:"center"},headerSpacer:{width:42},title:{color:M.text,fontSize:20,fontWeight:"700",letterSpacing:2.1,textAlign:"center",marginTop:8},subtitle:{color:M.muted,fontSize:11.5,lineHeight:17,textAlign:"center",marginTop:8,marginBottom:22,paddingHorizontal:18},card:{borderRadius:17,borderWidth:1,borderColor:"rgba(214,189,122,.13)",backgroundColor:"rgba(11,11,10,.90)",overflow:"hidden",...cardShadow},row:{minHeight:82,paddingHorizontal:16,paddingVertical:15,flexDirection:"row",alignItems:"center"},rowDivider:{borderBottomWidth:1,borderBottomColor:"rgba(255,255,255,.052)"},rowTitle:{color:M.text,fontSize:13.5,fontWeight:"700"},rowSub:{color:M.muted,fontSize:9.5,lineHeight:14,marginTop:4},toggle:{width:48,height:28,borderRadius:14,borderWidth:1,borderColor:"rgba(214,189,122,.12)",backgroundColor:"#24221E",padding:3,justifyContent:"center"},toggleOn:{backgroundColor:M.gold,borderColor:"rgba(241,221,162,.60)"},knob:{width:20,height:20,borderRadius:10,backgroundColor:"#8C8981"},knobOn:{alignSelf:"flex-end",backgroundColor:"#F7F5EF"}
-});
+const s=StyleSheet.create({safe:{flex:1},content:{paddingHorizontal:18,paddingTop:4,paddingBottom:80},saved:{alignSelf:"flex-end",height:30,borderRadius:15,borderWidth:1,borderColor:"rgba(110,231,190,.18)",backgroundColor:"rgba(110,231,190,.06)",paddingHorizontal:11,alignItems:"center",justifyContent:"center",marginTop:4,marginBottom:7},savedText:{color:M.green,fontSize:8.5,fontWeight:"800"},card:{overflow:"hidden",marginTop:8},row:{minHeight:82,paddingHorizontal:13,paddingVertical:13,flexDirection:"row",alignItems:"center",gap:11},line:{borderBottomWidth:1,borderBottomColor:"rgba(255,255,255,.055)"},icon:{width:40,height:40,borderRadius:13,backgroundColor:"rgba(169,184,255,.09)",borderWidth:1,borderColor:"rgba(169,184,255,.14)",alignItems:"center",justifyContent:"center"},iconText:{color:M.accentSoft,fontSize:14,fontWeight:"800"},rowTitle:{color:M.text,fontSize:12.5,fontWeight:"700"},rowSub:{color:M.muted,fontSize:8.8,lineHeight:13,marginTop:4,paddingRight:8},toggle:{width:50,height:29,borderRadius:15,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:"#202733",padding:3,justifyContent:"center"},toggleOn:{backgroundColor:M.accent,borderColor:M.accent},knob:{width:21,height:21,borderRadius:11,backgroundColor:M.muted},knobOn:{alignSelf:"flex-end",backgroundColor:M.bg},note:{padding:15,marginTop:14,flexDirection:"row",gap:11},noteMark:{width:40,height:40,borderRadius:13,backgroundColor:"rgba(169,184,255,.10)",borderWidth:1,borderColor:"rgba(169,184,255,.15)",alignItems:"center",justifyContent:"center"},noteMarkText:{color:M.accentSoft,fontSize:9,fontWeight:"900"},noteTitle:{color:M.text,fontSize:11.5,fontWeight:"700"},noteText:{color:M.muted,fontSize:9,lineHeight:13.5,marginTop:4}});

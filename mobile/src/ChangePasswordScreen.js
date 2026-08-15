@@ -1,23 +1,20 @@
-import React,{useState}from"react";
-import{Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,TextInput,View}from"react-native";
-import{BrandLogo,LuxuryBackButton,M,Marble,cardShadow,shadow}from"./MockupTheme";
+import React,{useState} from "react";
+import {Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from "react-native";
+import {M,Marble,PrimaryButton,Surface} from "./QFTheme";
+import {ClientHeader} from "./ClientLuxuryUI";
 
-function PasswordField({label,value,onChangeText,show,setShow}){
- return <View style={s.field}><Text style={s.label}>{label}</Text><View style={s.inputWrap}><TextInput value={value} onChangeText={onChangeText} secureTextEntry={!show} placeholder="••••••••" placeholderTextColor={M.muted2} style={s.input} autoCapitalize="none"/><Pressable onPress={()=>setShow(v=>!v)} style={s.eyeButton}><Text style={s.eye}>{show?"◉":"◎"}</Text></Pressable></View></View>;
-}
+function Field({label,value,onChangeText,show,setShow}){return <View style={s.field}><View style={s.fieldHead}><Text style={s.label}>{label}</Text><Pressable onPress={()=>setShow(v=>!v)}><Text style={s.show}>{show?"Hide":"Show"}</Text></Pressable></View><TextInput value={value} onChangeText={onChangeText} secureTextEntry={!show} placeholder="••••••••" placeholderTextColor={M.muted2} style={s.input} autoCapitalize="none"/></View>}
 
 export default function ChangePasswordScreen({onBack}){
- const[current,setCurrent]=useState(""),[next,setNext]=useState(""),[confirm,setConfirm]=useState(""),[showCurrent,setShowCurrent]=useState(false),[showNext,setShowNext]=useState(false),[showConfirm,setShowConfirm]=useState(false),[message,setMessage]=useState("");
- const update=()=>{if(!current||next.length<8||next!==confirm){setMessage(next!==confirm?"New passwords must match.":"Enter your current password and a new password of at least 8 characters.");return}setMessage("Password update is ready to connect during the account-settings pass.")};
- return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-   <View style={s.header}><LuxuryBackButton onPress={onBack}/><View style={s.headerLogo}><BrandLogo size={66} compact/></View><View style={s.headerSpacer}/></View>
-   <Text style={s.title}>CHANGE PASSWORD</Text><Text style={s.subtitle}>Keep your QuincyFadez account secure with a strong password.</Text>
-   <View style={s.card}><PasswordField label="CURRENT PASSWORD" value={current} onChangeText={setCurrent} show={showCurrent} setShow={setShowCurrent}/><PasswordField label="NEW PASSWORD" value={next} onChangeText={setNext} show={showNext} setShow={setShowNext}/><PasswordField label="CONFIRM NEW PASSWORD" value={confirm} onChangeText={setConfirm} show={showConfirm} setShow={setShowConfirm}/></View>
-   {message?<Text style={s.message}>{message}</Text>:null}
-   <Pressable onPress={update} style={s.primary}><Text style={s.primaryText}>UPDATE PASSWORD</Text></Pressable>
+  const[current,setCurrent]=useState(""),[next,setNext]=useState(""),[confirm,setConfirm]=useState(""),[showCurrent,setShowCurrent]=useState(false),[showNext,setShowNext]=useState(false),[showConfirm,setShowConfirm]=useState(false),[message,setMessage]=useState("");
+  const valid=current.length>0&&next.length>=8&&next===confirm;
+  const update=()=>{if(!valid){setMessage(next!==confirm?"The new passwords don’t match.":"Enter your current password and use at least 8 characters for the new one.");return}setMessage("Password changes are not connected to the live account service yet.")};
+  return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <ClientHeader title="Change password" subtitle="Use a strong password you don’t reuse elsewhere." onBack={onBack}/>
+    <Surface style={s.card}><Field label="Current password" value={current} onChangeText={setCurrent} show={showCurrent} setShow={setShowCurrent}/><Field label="New password" value={next} onChangeText={setNext} show={showNext} setShow={setShowNext}/><Field label="Confirm new password" value={confirm} onChangeText={setConfirm} show={showConfirm} setShow={setShowConfirm}/><View style={s.rule}><View style={[s.ruleDot,next.length>=8&&s.ruleDotOn]}/><Text style={s.ruleText}>At least 8 characters</Text></View></Surface>
+    {message?<View style={[s.message,valid&&s.messageInfo]}><Text style={s.messageText}>{message}</Text></View>:null}
+    <PrimaryButton title="Update password" subtitle="Secure your QuincyFadez account" onPress={update} disabled={!current||!next||!confirm} style={s.primary}/>
   </ScrollView></SafeAreaView></Marble>;
 }
 
-const s=StyleSheet.create({
- safe:{flex:1},content:{paddingHorizontal:22,paddingTop:12,paddingBottom:110},header:{height:76,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},headerLogo:{flex:1,alignItems:"center"},headerSpacer:{width:42},title:{color:M.text,fontSize:20,fontWeight:"700",letterSpacing:2.1,textAlign:"center",marginTop:8},subtitle:{color:M.muted,fontSize:11.5,lineHeight:17,textAlign:"center",marginTop:8,marginBottom:22,paddingHorizontal:18},card:{borderRadius:17,borderWidth:1,borderColor:"rgba(214,189,122,.13)",backgroundColor:"rgba(11,11,10,.90)",padding:16,...cardShadow},field:{marginBottom:15},label:{color:M.goldSoft,fontSize:8.5,fontWeight:"800",letterSpacing:1.2,marginBottom:8},inputWrap:{height:56,borderRadius:12,borderWidth:1,borderColor:"rgba(214,189,122,.14)",backgroundColor:"rgba(5,5,5,.72)",paddingLeft:14,flexDirection:"row",alignItems:"center"},input:{flex:1,color:M.text,fontSize:13.5,fontWeight:"500"},eyeButton:{width:48,height:56,alignItems:"center",justifyContent:"center"},eye:{color:M.goldSoft,fontSize:17},message:{color:M.muted,fontSize:9.5,lineHeight:14,textAlign:"center",marginTop:13,paddingHorizontal:12},primary:{height:56,borderRadius:12,backgroundColor:M.gold,borderWidth:1,borderColor:"rgba(241,221,162,.68)",alignItems:"center",justifyContent:"center",marginTop:18,...shadow},primaryText:{color:"#090704",fontSize:10.5,fontWeight:"900",letterSpacing:1.2}
-});
+const s=StyleSheet.create({safe:{flex:1},content:{paddingHorizontal:18,paddingTop:4,paddingBottom:80},card:{padding:15,marginTop:8},field:{marginBottom:15},fieldHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:7},label:{color:M.text2,fontSize:10,fontWeight:"700"},show:{color:M.accentSoft,fontSize:9.5,fontWeight:"700"},input:{height:54,borderRadius:15,borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:"rgba(8,11,16,.62)",paddingHorizontal:13,color:M.text,fontSize:13.5},rule:{flexDirection:"row",alignItems:"center",gap:7,marginTop:-2},ruleDot:{width:7,height:7,borderRadius:4,backgroundColor:M.muted2},ruleDotOn:{backgroundColor:M.green},ruleText:{color:M.muted,fontSize:8.8},message:{borderRadius:13,borderWidth:1,borderColor:"rgba(255,142,150,.20)",backgroundColor:M.redBg,padding:11,marginTop:12},messageInfo:{borderColor:"rgba(169,184,255,.18)",backgroundColor:"rgba(169,184,255,.06)"},messageText:{color:M.text2,fontSize:9.5,lineHeight:14},primary:{marginTop:15}});

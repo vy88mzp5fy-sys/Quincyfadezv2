@@ -1,6 +1,6 @@
 import React from "react";
-import AdminScreenModern from "./AdminScreenModern";
+import AdminLuxuryScreen from "./AdminLuxuryScreen";
 
 export default function AdminNotificationsShellCore({ onExit }) {
-  return <AdminScreenModern onExit={onExit} />;
+  return <AdminLuxuryScreen onExit={onExit} />;
 }

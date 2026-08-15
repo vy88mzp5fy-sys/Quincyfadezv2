@@ -47,7 +47,10 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.quincyfadez.app"
+      "bundleIdentifier": "com.quincyfadez.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.quincyfadez.app"

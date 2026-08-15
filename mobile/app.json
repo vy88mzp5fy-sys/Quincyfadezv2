@@ -49,7 +49,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.quincyfadez.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "QuincyFadez uses your camera to scan payment card details when you choose card scanning at checkout."
       }
     },
     "android": {

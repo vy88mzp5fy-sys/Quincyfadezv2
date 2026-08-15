@@ -1,26 +1,32 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
-const TTL=10*60*1000;
+const FRESH_TTL=10*60*1000;
+const DISPLAY_TTL=6*60*60*1000;
 const SERVICES=["Haircut","Haircut & Beard","Shape Up","Beard Trim"];
 const memory=new Map();
 const inflight=new Map();
 const keyFor=s=>`quincyfadez.availability.${encodeURIComponent(s)}`;
 const read=r=>r.json().catch(()=>({}));
+const age=x=>Date.now()-Number(x?.savedAt||0);
 
-export function peekAvailability(service){
+export function peekAvailability(service,{freshOnly=false}={}){
   const hit=memory.get(service);
-  return hit&&Date.now()-hit.savedAt<TTL?hit.data:null;
+  if(!hit?.data)return null;
+  const limit=freshOnly?FRESH_TTL:DISPLAY_TTL;
+  return age(hit)<limit?hit.data:null;
 }
 
-export async function readCachedAvailability(service){
-  const hot=peekAvailability(service);
+export async function readCachedAvailability(service,{freshOnly=false}={}){
+  const hot=peekAvailability(service,{freshOnly});
   if(hot)return hot;
   try{
     const raw=await AsyncStorage.getItem(keyFor(service));
     if(!raw)return null;
     const cached=JSON.parse(raw);
-    if(!cached?.data||Date.now()-Number(cached.savedAt||0)>TTL)return null;
+    if(!cached?.data)return null;
+    const limit=freshOnly?FRESH_TTL:DISPLAY_TTL;
+    if(age(cached)>limit)return null;
     memory.set(service,cached);
     return cached.data;
   }catch{return null}
@@ -28,7 +34,8 @@ export async function readCachedAvailability(service){
 
 export async function fetchAvailability(service,days=21){
   if(!API)return null;
-  if(inflight.has(service))return inflight.get(service);
+  const requestKey=`${service}:${days}`;
+  if(inflight.has(requestKey))return inflight.get(requestKey);
   const job=(async()=>{
     const r=await fetch(`${API}/api/booking/availability?service=${encodeURIComponent(service)}&days=${days}`);
     const data=await read(r);
@@ -38,8 +45,8 @@ export async function fetchAvailability(service,days=21){
     AsyncStorage.setItem(keyFor(service),JSON.stringify(cached)).catch(()=>{});
     return data;
   })();
-  inflight.set(service,job);
-  try{return await job}finally{inflight.delete(service)}
+  inflight.set(requestKey,job);
+  try{return await job}finally{inflight.delete(requestKey)}
 }
 
 export async function getAvailability(service,days=21,{refresh=true}={}){
@@ -61,4 +68,4 @@ export function primeAvailability(days=21){
   }));
 }
 
-export {SERVICES};
+export {SERVICES,FRESH_TTL,DISPLAY_TTL};

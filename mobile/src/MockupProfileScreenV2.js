@@ -1,26 +1,27 @@
-import React,{useEffect,useState}from"react";
-import{Linking,Pressable,SafeAreaView,ScrollView,Share,StatusBar,StyleSheet,Text,View}from"react-native";
+import React from"react";
+import{Linking,Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,View}from"react-native";
 import AsyncStorage from"@react-native-async-storage/async-storage";
-import{BrandLogo,M,Marble,cardShadow}from"./MockupTheme";
-import{ClientHeader,ClientSection}from"./ClientLuxuryUI";
+import{BrandLogo,LuxuryBackButton,M,Marble,cardShadow,shadow}from"./MockupTheme";
+import{ClientSection}from"./ClientLuxuryUI";
 
-const PROFILE="quincyfadez.bookingProfile";
-const links={whatsapp:"https://wa.me/447490194682",directions:"https://www.google.com/maps/dir/?api=1&destination=51.7402247,-1.2202434",reviews:"https://g.page/r/CbQwl91s8_vqEBM/review",website:"https://quincyfadez.com"};
-function Toggle({value,onPress}){return <Pressable onPress={onPress} style={[s.toggle,value&&s.toggleOn]}><View style={[s.knob,value&&s.knobOn]}/></Pressable>}
-function Row({icon,title,sub,right,onPress,last}){const body=<View style={[s.row,!last&&s.line]}><View style={s.rowLeft}>{icon?<View style={s.rowIcon}><Text style={s.rowIconText}>{icon}</Text></View>:null}<View style={{flex:1}}><Text style={s.rowTitle}>{title}</Text>{sub?<Text style={s.rowSub}>{sub}</Text>:null}</View></View>{right||<Text style={s.chev}>›</Text>}</View>;return onPress?<Pressable onPress={onPress}>{body}</Pressable>:body}
+const links={whatsapp:"https://wa.me/447490194682",website:"https://quincyfadez.com"};
+function Row({icon,title,sub,onPress,last}){const body=<View style={[s.row,!last&&s.line]}><View style={s.rowIcon}><Text style={s.rowIconText}>{icon}</Text></View><View style={{flex:1}}><Text style={s.rowTitle}>{title}</Text>{sub?<Text style={s.rowSub}>{sub}</Text>:null}</View><Text style={s.chev}>›</Text></View>;return onPress?<Pressable onPress={onPress}>{body}</Pressable>:body}
 
-export default function MockupProfileScreenV2({onBack,go}){
- const[profile,setProfile]=useState({}),[prefs,setPrefs]=useState({reminders:true,confirmations:true,reschedule:true,waitlist:true});
- useEffect(()=>{AsyncStorage.getItem(PROFILE).then(v=>{if(v)try{setProfile(JSON.parse(v))}catch(_){}});AsyncStorage.getItem("quincyfadez.clientPrefs").then(v=>{if(v)try{setPrefs(JSON.parse(v))}catch(_){}})},[]);
- const toggle=k=>setPrefs(p=>{const n={...p,[k]:!p[k]};AsyncStorage.setItem("quincyfadez.clientPrefs",JSON.stringify(n));return n});
+export default function MockupProfileScreenV2({onBack,go,onLogout}){
+ const logout=async()=>{await AsyncStorage.multiRemove(["quincyfadez.clientSession","quincyfadez.paymentClientKey","quincyfadez.adminToken"]);onLogout?.()};
  return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-  <ClientHeader title="Profile" subtitle="Your QuincyFadez account, preferences and quick links." onBack={onBack}/>
-  <View style={s.profile}><BrandLogo size={82} compact/><View style={{flex:1}}><Text style={s.name}>{profile.name||"QuincyFadez Client"}</Text><Text style={s.meta}>{profile.email||profile.phone||"Your QuincyFadez account"}</Text><Pressable onPress={()=>go("account")} style={s.edit}><Text style={s.editText}>MANAGE ACCOUNT</Text></Pressable></View></View>
-  <ClientSection title="APPOINTMENT PREFERENCES"/>
-  <View style={s.card}><Row icon="◷" title="Reminder Notifications" sub="Show appointment reminders on this device" right={<Toggle value={prefs.reminders} onPress={()=>toggle("reminders")}/>}/><Row icon="✓" title="Booking Confirmations" sub="Keep booking confirmation alerts on" right={<Toggle value={prefs.confirmations} onPress={()=>toggle("confirmations")}/>}/><Row icon="↻" title="Reschedule Alerts" sub="Be notified if an appointment changes" right={<Toggle value={prefs.reschedule} onPress={()=>toggle("reschedule")}/>}/><Row icon="☆" title="Waitlist Alerts" sub="Hear when a suitable slot becomes available" last right={<Toggle value={prefs.waitlist} onPress={()=>toggle("waitlist")}/>}/></View>
-  <ClientSection title="QUICK LINKS"/>
-  <View style={s.card}><Row icon="▦" title="My Bookings" sub="Upcoming and previous appointments" onPress={()=>go("bookings")}/><Row icon="✂" title="Services" sub="View pricing and timings" onPress={()=>go("services")}/><Row icon="⌖" title="Location & Directions" sub="Get directions to QuincyFadez" onPress={()=>Linking.openURL(links.directions).catch(()=>{})}/><Row icon="◉" title="WhatsApp QuincyFadez" sub="Message for appointment help" onPress={()=>Linking.openURL(links.whatsapp).catch(()=>{})}/><Row icon="★" title="Leave A Google Review" sub="Share your experience" onPress={()=>Linking.openURL(links.reviews).catch(()=>{})}/><Row icon="↗" title="Share Booking Link" sub="Send QuincyFadez to someone" last onPress={()=>Share.share({message:`Book QuincyFadez: ${links.website}`})}/></View>
- </ScrollView></SafeAreaView></Marble>
+   <View style={s.header}><LuxuryBackButton onPress={onBack}/><View style={s.headerLogo}><BrandLogo size={68} compact/></View><View style={s.headerSpacer}/></View>
+   <Text style={s.title}>MY PROFILE</Text><Text style={s.subtitle}>Your QuincyFadez account, preferences and support.</Text>
+   <ClientSection title="ACCOUNT"/>
+   <View style={s.card}><Row icon="◎" title="Personal Information" sub="Name, email address and phone number" onPress={()=>go("personal")}/><Row icon="◇" title="Change Password" sub="Update your account password" onPress={()=>go("changePassword")} last/></View>
+   <ClientSection title="PREFERENCES"/>
+   <View style={s.card}><Row icon="◉" title="Notifications" sub="Booking, reminder and waiting-list alerts" onPress={()=>go("notifications")}/><Row icon="▦" title="Booking Preferences" sub="Booking and payment settings" onPress={()=>go("account")}/><Row icon="✂" title="Favourite Services" sub="View QuincyFadez services and pricing" onPress={()=>go("services")} last/></View>
+   <ClientSection title="SUPPORT"/>
+   <View style={s.card}><Row icon="?" title="Help & FAQs" sub="Get help with your account or booking" onPress={()=>Linking.openURL(links.whatsapp).catch(()=>{})}/><Row icon="§" title="Terms & Privacy" sub="QuincyFadez terms and privacy information" onPress={()=>Linking.openURL(links.website).catch(()=>{})} last/></View>
+   <Pressable onPress={logout} style={s.logout}><Text style={s.logoutText}>LOG OUT</Text></Pressable>
+  </ScrollView></SafeAreaView></Marble>;
 }
 
-const s=StyleSheet.create({safe:{flex:1},content:{paddingHorizontal:18,paddingTop:7,paddingBottom:112},profile:{borderRadius:16,borderWidth:1,borderColor:"rgba(214,189,122,.26)",backgroundColor:"rgba(16,16,15,.93)",padding:16,flexDirection:"row",alignItems:"center",gap:15,...cardShadow},name:{color:M.text,fontSize:18,fontWeight:"700"},meta:{color:M.muted,fontSize:10.5,marginTop:5},edit:{alignSelf:"flex-start",borderRadius:8,borderWidth:1,borderColor:M.goldDark,paddingHorizontal:10,paddingVertical:7,marginTop:10},editText:{color:M.goldSoft,fontSize:8,fontWeight:"900",letterSpacing:.7},card:{borderRadius:15,borderWidth:1,borderColor:"rgba(214,189,122,.20)",backgroundColor:"rgba(16,16,15,.93)",overflow:"hidden",...cardShadow},row:{minHeight:72,paddingHorizontal:14,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},rowLeft:{flex:1,flexDirection:"row",alignItems:"center",gap:11},rowIcon:{width:38,height:38,borderRadius:19,borderWidth:1,borderColor:M.goldDark,backgroundColor:M.panel3,alignItems:"center",justifyContent:"center"},rowIconText:{color:M.goldSoft,fontSize:16},line:{borderBottomWidth:1,borderBottomColor:"rgba(255,255,255,.07)"},rowTitle:{color:M.text,fontSize:13.5,fontWeight:"700"},rowSub:{color:M.muted,fontSize:9.5,lineHeight:13,marginTop:3},chev:{color:M.gold,fontSize:24},toggle:{width:52,height:30,borderRadius:15,backgroundColor:"#302B22",padding:3,justifyContent:"center"},toggleOn:{backgroundColor:M.gold},knob:{width:24,height:24,borderRadius:12,backgroundColor:"#B8B3A9"},knobOn:{alignSelf:"flex-end",backgroundColor:"#FFF"}});
+const s=StyleSheet.create({
+ safe:{flex:1},content:{paddingHorizontal:20,paddingTop:10,paddingBottom:112},header:{height:76,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},headerLogo:{flex:1,alignItems:"center"},headerSpacer:{width:42},title:{color:M.text,fontSize:20,fontWeight:"700",letterSpacing:2.1,textAlign:"center",marginTop:8},subtitle:{color:M.muted,fontSize:11.5,lineHeight:17,textAlign:"center",marginTop:8,marginBottom:4},card:{borderRadius:17,borderWidth:1,borderColor:"rgba(214,189,122,.13)",backgroundColor:"rgba(11,11,10,.90)",overflow:"hidden",...cardShadow},row:{minHeight:76,paddingHorizontal:15,flexDirection:"row",alignItems:"center",gap:12},rowIcon:{width:40,height:40,borderRadius:12,borderWidth:1,borderColor:"rgba(214,189,122,.16)",backgroundColor:"rgba(18,16,12,.62)",alignItems:"center",justifyContent:"center"},rowIconText:{color:M.goldSoft,fontSize:16,fontWeight:"700"},line:{borderBottomWidth:1,borderBottomColor:"rgba(255,255,255,.052)"},rowTitle:{color:M.text,fontSize:13.5,fontWeight:"700"},rowSub:{color:M.muted,fontSize:9.5,lineHeight:14,marginTop:4},chev:{color:M.goldSoft,fontSize:22},logout:{height:56,borderRadius:12,backgroundColor:M.gold,borderWidth:1,borderColor:"rgba(241,221,162,.66)",alignItems:"center",justifyContent:"center",marginTop:28,...shadow},logoutText:{color:"#090704",fontSize:10.5,fontWeight:"900",letterSpacing:1.2}
+});

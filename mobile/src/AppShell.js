@@ -1,1 +1,1 @@
-export { default } from "./AppShellModern";
+export { default } from "./ClientLuxuryShell";

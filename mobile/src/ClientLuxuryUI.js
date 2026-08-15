@@ -23,12 +23,12 @@ const s=StyleSheet.create({
   headText:{flex:1},
   title:{color:M.text,fontSize:25,fontWeight:"700",letterSpacing:-.5},
   subtitle:{color:M.muted,fontSize:11.5,lineHeight:16,marginTop:4},
-  rightButton:{width:44,height:44,borderRadius:14,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:"rgba(17,23,34,.86)",alignItems:"center",justifyContent:"center"},
+  rightButton:{width:44,height:44,borderRadius:14,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:M.panel,alignItems:"center",justifyContent:"center"},
   right:{color:M.text2,fontSize:16,fontWeight:"700"},
   section:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:26,marginBottom:10},
   sectionTitle:{color:M.muted,fontSize:9,fontWeight:"800",letterSpacing:1.25},
   sectionAction:{color:M.accentSoft,fontSize:10.5,fontWeight:"700"},
-  card:{borderRadius:20,borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:"rgba(17,23,34,.94)",...cardShadow},
-  icon:{width:43,height:43,borderRadius:14,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:"rgba(21,28,40,.95)",alignItems:"center",justifyContent:"center"},
+  card:{borderRadius:18,borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:M.panel,...cardShadow},
+  icon:{width:43,height:43,borderRadius:14,borderWidth:1,borderColor:"rgba(214,183,92,.18)",backgroundColor:M.panel2,alignItems:"center",justifyContent:"center"},
   iconText:{color:M.accentSoft,fontSize:16,fontWeight:"800"}
 });

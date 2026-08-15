@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { QF, qfCardShadow, qfShadow } from "./QuincyTheme";
 
-const BG="#050505",GOLD="#D6BD7A",GOLD_LIGHT="#F1DDA2",BORDER="#3A3121",MUTED="#AAA49A",TEXT="#FBFAF6";
 const API_URL=(process.env.EXPO_PUBLIC_API_URL||"").replace(/\/$/,"");
 const SESSION_STORAGE="quincyfadez.clientSession";
 const CLIENT_KEY_STORAGE="quincyfadez.paymentClientKey";
@@ -17,6 +17,28 @@ async function persistClientSession(session){
   if(clientKey)writes.push([CLIENT_KEY_STORAGE,clientKey]);
   writes.push([PROFILE_STORAGE,JSON.stringify({name:profile.name||"",phone:profile.phone||"",email:profile.email||""})]);
   await AsyncStorage.multiSet(writes);
+}
+
+function BrandMark(){
+  return <View style={s.brandMark}><Image source={require("../assets/icon.png")} style={s.brandImage}/></View>;
+}
+
+function Field({label,value,onChangeText,placeholder,keyboardType,secureTextEntry,autoCapitalize="none",onSubmitEditing}){
+  return <View style={s.field}>
+    <Text style={s.label}>{label}</Text>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={QF.muted2}
+      keyboardType={keyboardType}
+      secureTextEntry={secureTextEntry}
+      autoCapitalize={autoCapitalize}
+      autoCorrect={false}
+      onSubmitEditing={onSubmitEditing}
+      style={s.input}
+    />
+  </View>;
 }
 
 export default function AuthScreen({onClient,onAdmin}){
@@ -80,23 +102,64 @@ export default function AuthScreen({onClient,onAdmin}){
     finally{setBusy(false)}
   };
 
-  return <SafeAreaView style={s.safe}><StatusBar barStyle="light-content" backgroundColor={BG}/><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-    <View style={s.logo}><Text style={s.logoText}>QF</Text></View>
-    <Text style={s.eyebrow}>QUINCYFADEZ</Text>
-    <Text style={s.title}>{mode==="login"?"Welcome Back.":"Create Your Account."}</Text>
-    <Text style={s.copy}>{mode==="login"?"Log in to continue to QuincyFadez.":"Create your client account to book and manage appointments."}</Text>
-    <View style={s.tabs}><Pressable onPress={()=>switchMode("login")} style={[s.tab,mode==="login"&&s.tabActive]}><Text style={[s.tabText,mode==="login"&&s.tabTextActive]}>LOG IN</Text></Pressable><Pressable onPress={()=>switchMode("signup")} style={[s.tab,mode==="signup"&&s.tabActive]}><Text style={[s.tabText,mode==="signup"&&s.tabTextActive]}>SIGN UP</Text></Pressable></View>
-    <View style={s.card}>
-      {mode==="signup"?<><Text style={s.label}>NAME</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor="#625E57" autoCapitalize="words" style={s.input}/><Text style={s.label}>MOBILE NUMBER</Text><TextInput value={phone} onChangeText={setPhone} placeholder="07..." placeholderTextColor="#625E57" keyboardType="phone-pad" style={s.input}/></>:null}
-      <Text style={s.label}>EMAIL</Text><TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#625E57" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} style={s.input}/>
-      <Text style={s.label}>PASSWORD</Text><TextInput value={password} onChangeText={setPassword} placeholder={mode==="signup"?"At least 8 characters":"Your password"} placeholderTextColor="#625E57" secureTextEntry autoCapitalize="none" style={s.input} onSubmitEditing={submit}/>
-      {error?<View style={s.errorBox}><Text style={s.error}>{error}</Text></View>:null}
-      <Pressable disabled={busy} onPress={submit} style={[s.primary,busy&&s.disabled]}>{busy?<ActivityIndicator color="#090909"/>:<><Text style={s.primaryText}>{mode==="signup"?"CREATE ACCOUNT":"CONTINUE"}</Text><Text style={s.arrow}>›</Text></>}</Pressable>
-    </View>
-    <Text style={s.security}>Secure sign-in. The app automatically opens the correct QuincyFadez experience after your credentials are verified.</Text>
-  </ScrollView></SafeAreaView>;
+  const signupMode=mode==="signup";
+  return <SafeAreaView style={s.safe}>
+    <StatusBar barStyle="light-content" backgroundColor={QF.bg}/>
+    <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <View style={s.topLine}/>
+      <View style={s.brandRow}>
+        <BrandMark/>
+        <View style={s.brandCopy}>
+          <Text style={s.brand}>QUINCYFADEZ</Text>
+          <Text style={s.brandSub}>PREMIUM BARBER · OXFORD</Text>
+        </View>
+      </View>
+
+      <View style={s.heroCopy}>
+        <Text style={s.kicker}>{signupMode?"NEW CLIENT":"WELCOME BACK"}</Text>
+        <Text style={s.title}>{signupMode?"Your QuincyFadez Account Starts Here.":"Good To See You Again."}</Text>
+        <Text style={s.copy}>{signupMode?"Create your account once, then book and manage every appointment from one clean place.":"Log in and we’ll automatically open the right QuincyFadez experience for your account."}</Text>
+      </View>
+
+      <View style={s.tabs}>
+        <Pressable onPress={()=>switchMode("login")} style={[s.tab,mode==="login"&&s.tabActive]}><Text style={[s.tabText,mode==="login"&&s.tabTextActive]}>LOG IN</Text></Pressable>
+        <Pressable onPress={()=>switchMode("signup")} style={[s.tab,mode==="signup"&&s.tabActive]}><Text style={[s.tabText,mode==="signup"&&s.tabTextActive]}>SIGN UP</Text></Pressable>
+      </View>
+
+      <View style={s.formCard}>
+        <View style={s.formHead}><Text style={s.formKicker}>{signupMode?"CREATE ACCOUNT":"SECURE SIGN IN"}</Text><View style={s.securePill}><View style={s.secureDot}/><Text style={s.secureText}>SECURE</Text></View></View>
+        {signupMode?<>
+          <Field label="FULL NAME" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words"/>
+          <Field label="MOBILE NUMBER" value={phone} onChangeText={setPhone} placeholder="07..." keyboardType="phone-pad"/>
+        </>:null}
+        <Field label="EMAIL ADDRESS" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address"/>
+        <Field label="PASSWORD" value={password} onChangeText={setPassword} placeholder={signupMode?"At least 8 characters":"Your password"} secureTextEntry onSubmitEditing={submit}/>
+
+        {error?<View style={s.errorBox}><Text style={s.errorTitle}>CHECK YOUR DETAILS</Text><Text style={s.error}>{error}</Text></View>:null}
+
+        <Pressable disabled={busy} onPress={submit} style={({pressed})=>[s.primary,busy&&s.disabled,pressed&&!busy&&s.pressed]}>
+          {busy?<ActivityIndicator color="#090806"/>:<><View><Text style={s.primaryText}>{signupMode?"CREATE MY ACCOUNT":"CONTINUE"}</Text><Text style={s.primarySub}>{signupMode?"Set Up QuincyFadez Access":"Open My QuincyFadez"}</Text></View><View style={s.arrowCircle}><Text style={s.arrow}>›</Text></View></>}
+        </Pressable>
+      </View>
+
+      <View style={s.promiseCard}>
+        <View style={s.promiseLine}/>
+        <Text style={s.promiseTitle}>ONE APP. ONE LOGIN.</Text>
+        <Text style={s.promiseCopy}>Clients never need to choose between different app areas. Your verified credentials decide what opens after sign-in.</Text>
+      </View>
+      <Text style={s.footer}>QUINCYFADEZ · PRIVATE CLIENT ACCESS</Text>
+    </ScrollView>
+  </SafeAreaView>;
 }
 
 const s=StyleSheet.create({
-  safe:{flex:1,backgroundColor:BG},content:{flexGrow:1,paddingHorizontal:22,paddingTop:46,paddingBottom:38},logo:{width:78,height:78,borderRadius:39,borderWidth:1.5,borderColor:"#7A6330",backgroundColor:"#171107",alignItems:"center",justifyContent:"center",shadowColor:GOLD,shadowOpacity:.18,shadowRadius:18,shadowOffset:{width:0,height:7}},logoText:{color:GOLD_LIGHT,fontSize:26,fontWeight:"900"},eyebrow:{color:GOLD,fontSize:10,letterSpacing:2.1,fontWeight:"900",marginTop:26},title:{color:TEXT,fontSize:34,lineHeight:39,fontWeight:"850",marginTop:8},copy:{color:MUTED,fontSize:14,lineHeight:21,marginTop:10,maxWidth:340},tabs:{flexDirection:"row",backgroundColor:"#0A0907",borderWidth:1,borderColor:BORDER,borderRadius:18,padding:5,marginTop:28},tab:{flex:1,minHeight:48,borderRadius:13,alignItems:"center",justifyContent:"center"},tabActive:{backgroundColor:"#1B150A",borderWidth:1,borderColor:"#655028"},tabText:{color:"#77736D",fontSize:10,fontWeight:"900",letterSpacing:1},tabTextActive:{color:GOLD_LIGHT},card:{marginTop:14,borderRadius:22,borderWidth:1,borderColor:BORDER,backgroundColor:"#0E0C08",padding:17},label:{color:GOLD,fontSize:9.5,letterSpacing:1.1,fontWeight:"900",marginTop:12,marginBottom:7},input:{minHeight:56,borderRadius:15,borderWidth:1,borderColor:"#2D2A24",backgroundColor:"#0A0A09",color:TEXT,paddingHorizontal:15,fontSize:14},errorBox:{marginTop:13,borderRadius:12,borderWidth:1,borderColor:"#5B312B",backgroundColor:"#170C0A",padding:11},error:{color:"#E4A097",fontSize:11.5,lineHeight:17},primary:{minHeight:62,borderRadius:16,backgroundColor:GOLD,marginTop:18,paddingHorizontal:18,flexDirection:"row",alignItems:"center",justifyContent:"space-between",shadowColor:GOLD,shadowOpacity:.24,shadowRadius:18,shadowOffset:{width:0,height:7},elevation:4},primaryText:{color:"#090909",fontSize:11,letterSpacing:.9,fontWeight:"900"},arrow:{color:"#090909",fontSize:30},disabled:{opacity:.55},security:{color:"#706B63",fontSize:10.5,lineHeight:16,textAlign:"center",marginTop:16,paddingHorizontal:8}
+  safe:{flex:1,backgroundColor:QF.bg},content:{flexGrow:1,paddingHorizontal:20,paddingTop:12,paddingBottom:34},pressed:{opacity:.84},disabled:{opacity:.55},
+  topLine:{height:2,width:64,borderRadius:2,backgroundColor:QF.gold,marginBottom:22},brandRow:{flexDirection:"row",alignItems:"center",gap:13},brandMark:{width:62,height:62,borderRadius:31,borderWidth:1.5,borderColor:QF.goldDark,backgroundColor:QF.panel2,overflow:"hidden",alignItems:"center",justifyContent:"center",...qfShadow},brandImage:{width:58,height:58,borderRadius:29,resizeMode:"cover"},brandCopy:{flex:1},brand:{color:QF.text,fontSize:20,fontWeight:"900",letterSpacing:3.1},brandSub:{color:QF.gold,fontSize:8.5,fontWeight:"850",letterSpacing:1.35,marginTop:6},
+  heroCopy:{paddingTop:32,paddingBottom:22},kicker:{color:QF.gold,fontSize:9.5,fontWeight:"900",letterSpacing:1.7},title:{color:QF.text,fontSize:33,lineHeight:37,fontWeight:"900",marginTop:8,maxWidth:350},copy:{color:QF.muted,fontSize:13.5,lineHeight:20,marginTop:11,maxWidth:350},
+  tabs:{height:58,flexDirection:"row",backgroundColor:QF.panel,borderWidth:1,borderColor:QF.border,borderRadius:18,padding:5,...qfCardShadow},tab:{flex:1,borderRadius:13,alignItems:"center",justifyContent:"center"},tabActive:{backgroundColor:QF.panel3,borderWidth:1,borderColor:QF.goldDark},tabText:{color:QF.muted2,fontSize:10,fontWeight:"900",letterSpacing:1.1},tabTextActive:{color:QF.goldSoft},
+  formCard:{marginTop:13,borderRadius:24,borderWidth:1,borderColor:QF.border,backgroundColor:QF.panel,padding:17,...qfCardShadow},formHead:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginBottom:4},formKicker:{color:QF.text2,fontSize:10,fontWeight:"900",letterSpacing:1.2},securePill:{flexDirection:"row",alignItems:"center",gap:6,borderRadius:12,borderWidth:1,borderColor:"#26422E",backgroundColor:QF.greenBg,paddingHorizontal:9,paddingVertical:6},secureDot:{width:6,height:6,borderRadius:3,backgroundColor:QF.green},secureText:{color:QF.green,fontSize:7.5,fontWeight:"900",letterSpacing:.8},
+  field:{marginTop:15},label:{color:QF.gold,fontSize:9,fontWeight:"900",letterSpacing:1.15,marginBottom:7},input:{minHeight:58,borderRadius:16,borderWidth:1,borderColor:QF.borderSoft,backgroundColor:QF.bg2,color:QF.text,paddingHorizontal:15,fontSize:15,fontWeight:"600"},
+  errorBox:{marginTop:14,borderRadius:14,borderWidth:1,borderColor:"#5F312B",backgroundColor:QF.redBg,padding:12},errorTitle:{color:QF.red,fontSize:8,fontWeight:"900",letterSpacing:1.1},error:{color:"#E9B1A9",fontSize:11.5,lineHeight:17,marginTop:5},
+  primary:{minHeight:70,borderRadius:18,backgroundColor:QF.gold,marginTop:18,paddingHorizontal:17,paddingVertical:11,flexDirection:"row",alignItems:"center",justifyContent:"space-between",...qfShadow},primaryText:{color:"#090806",fontSize:11.5,fontWeight:"950",letterSpacing:.9},primarySub:{color:"#4E3B18",fontSize:9.5,fontWeight:"800",marginTop:4},arrowCircle:{width:39,height:39,borderRadius:20,backgroundColor:"rgba(5,5,5,.11)",alignItems:"center",justifyContent:"center"},arrow:{color:"#090806",fontSize:30,lineHeight:32},
+  promiseCard:{marginTop:17,borderRadius:20,borderWidth:1,borderColor:QF.borderSoft,backgroundColor:QF.bg2,padding:16},promiseLine:{width:38,height:2,borderRadius:1,backgroundColor:QF.gold,marginBottom:11},promiseTitle:{color:QF.text2,fontSize:9.5,fontWeight:"900",letterSpacing:1.15},promiseCopy:{color:QF.muted,fontSize:11.5,lineHeight:17,marginTop:7},footer:{color:QF.muted2,fontSize:8.5,fontWeight:"800",letterSpacing:1.3,textAlign:"center",marginTop:18}
 });

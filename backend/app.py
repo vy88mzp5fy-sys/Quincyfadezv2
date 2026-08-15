@@ -5,14 +5,16 @@ mounts the client account router at /api/client, exposes authenticated push-devi
 registration at /api/notifications, and serves the client waiting list at /api/waiting-list.
 """
 
+from admin_insights_v2_api import build_admin_insights_v2_router
 from client_auth import build_client_auth_router
 from notification_api import build_notification_router
 from waiting_list_api import build_waiting_list_router
-from server import SERVICES, app, db
+from server import LONDON, SERVICES, app, db
 
 app.include_router(build_client_auth_router(db), prefix="/api")
 app.include_router(build_notification_router(db), prefix="/api")
 app.include_router(build_waiting_list_router(db, SERVICES), prefix="/api")
+app.include_router(build_admin_insights_v2_router(db, LONDON), prefix="/api")
 
 
 @app.on_event("startup")

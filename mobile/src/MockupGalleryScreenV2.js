@@ -1,0 +1,26 @@
+import React from"react";
+import{Image,Linking,Pressable,SafeAreaView,ScrollView,StatusBar,StyleSheet,Text,View}from"react-native";
+import{M,Marble,cardShadow}from"./MockupTheme";
+import{ClientHeader,ClientSection}from"./ClientLuxuryUI";
+
+const CDN="https://vz-d1735d3f-314.b-cdn.net",IG="https://www.instagram.com/QuincyFadez";
+const G=[
+ {id:"01",image:"https://quincyfadez.com/media/gallery-replacement-01.jpg",label:"Clean Fade"},
+ {id:"02",image:`${CDN}/8656d667-9c99-4d1b-b20b-bf8f1b2ec44c/thumbnail.jpg`,label:"Sharp Finish"},
+ {id:"03",image:`${CDN}/ed50b0aa-31d1-4496-925f-35cf0b30f816/thumbnail.jpg`,label:"Fresh Detail"},
+ {id:"04",image:"https://raw.githubusercontent.com/vy88mzp5fy-sys/Quincyfadezv2/main/mobile/assets/gallery-04.jpg",label:"Precision Cut"},
+ {id:"05",image:"https://quincyfadez.com/media/work-05-replacement.jpg",label:"Clean Lines"},
+ {id:"06",image:"https://raw.githubusercontent.com/vy88mzp5fy-sys/Quincyfadezv2/main/mobile/assets/gallery-06.jpg",label:"Premium Finish"},
+];
+
+function Tile({x,large=false}){return <View style={[s.tile,large&&s.large]}><Image source={{uri:x.image}} style={s.fill}/><View style={s.shade}/><View style={s.number}><Text style={s.numberText}>{x.id}</Text></View><View style={s.caption}><Text style={s.tileTitle}>{x.label}</Text><Text style={s.tileBrand}>QUINCYFADEZ</Text></View></View>}
+
+export default function MockupGalleryScreenV2({onBack,onBook}){return <Marble><SafeAreaView style={s.safe}><StatusBar barStyle="light-content"/><ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+ <ClientHeader title="Gallery" subtitle="Recent QuincyFadez work, finished with clean detail and precision." onBack={onBack}/>
+ <View style={s.feature}><Image source={{uri:G[0].image}} style={s.fill}/><View style={s.featureShade}/><View style={s.featureCopy}><Text style={s.kicker}>FEATURED CUT</Text><Text style={s.featureTitle}>{G[0].label}</Text><Text style={s.featureMeta}>QUINCYFADEZ · OXFORD</Text></View></View>
+ <ClientSection title="RECENT WORK"/>
+ <View style={s.grid}>{G.slice(1).map((x,i)=><Tile key={x.id} x={x} large={i===2}/>)}</View>
+ <View style={s.cta}><Text style={s.kicker}>LIKE WHAT YOU SEE?</Text><Text style={s.ctaTitle}>Book Your Next Cut.</Text><Text style={s.ctaText}>Choose your service and check live appointment availability inside the app.</Text><Pressable onPress={onBook} style={s.primary}><Text style={s.primaryText}>BOOK YOUR NEXT CUT</Text><Text style={s.primaryArrow}>›</Text></Pressable><Pressable onPress={()=>Linking.openURL(IG).catch(()=>{})} style={s.secondary}><Text style={s.secondaryText}>VIEW INSTAGRAM</Text></Pressable></View>
+ </ScrollView></SafeAreaView></Marble>}
+
+const s=StyleSheet.create({safe:{flex:1},content:{paddingHorizontal:18,paddingTop:7,paddingBottom:112},feature:{height:350,borderRadius:18,overflow:"hidden",borderWidth:1,borderColor:"rgba(214,189,122,.32)",...cardShadow},fill:{...StyleSheet.absoluteFillObject,width:"100%",height:"100%"},featureShade:{...StyleSheet.absoluteFillObject,backgroundColor:"rgba(0,0,0,.28)"},featureCopy:{position:"absolute",left:12,right:12,bottom:12,borderRadius:12,borderWidth:1,borderColor:"rgba(214,189,122,.22)",backgroundColor:"rgba(5,4,3,.78)",padding:13},kicker:{color:M.gold,fontSize:9,fontWeight:"900",letterSpacing:1.1},featureTitle:{color:M.text,fontSize:20,fontWeight:"700",marginTop:5},featureMeta:{color:M.muted,fontSize:9,marginTop:5,letterSpacing:.8},grid:{flexDirection:"row",flexWrap:"wrap",gap:10},tile:{width:"48.5%",height:230,borderRadius:14,overflow:"hidden",borderWidth:1,borderColor:"rgba(214,189,122,.22)",backgroundColor:M.panel,...cardShadow},large:{width:"100%",height:260},shade:{...StyleSheet.absoluteFillObject,backgroundColor:"rgba(0,0,0,.13)"},number:{position:"absolute",top:9,left:9,minWidth:31,height:31,borderRadius:16,borderWidth:1,borderColor:M.goldDark,backgroundColor:"rgba(5,4,3,.75)",alignItems:"center",justifyContent:"center"},numberText:{color:M.goldSoft,fontSize:8,fontWeight:"900"},caption:{position:"absolute",left:8,right:8,bottom:8,borderRadius:10,backgroundColor:"rgba(5,4,3,.82)",padding:9},tileTitle:{color:M.text,fontSize:11.5,fontWeight:"700"},tileBrand:{color:M.gold,fontSize:7.5,fontWeight:"900",letterSpacing:.8,marginTop:3},cta:{borderRadius:15,borderWidth:1,borderColor:"rgba(214,189,122,.24)",backgroundColor:"rgba(16,16,15,.93)",padding:16,marginTop:20,...cardShadow},ctaTitle:{color:M.text,fontSize:22,fontWeight:"700",marginTop:6},ctaText:{color:M.muted,fontSize:11.5,lineHeight:17,marginTop:7},primary:{height:52,borderRadius:10,backgroundColor:M.gold,marginTop:15,paddingHorizontal:15,flexDirection:"row",alignItems:"center",justifyContent:"space-between"},primaryText:{color:"#090704",fontSize:10,fontWeight:"900"},primaryArrow:{color:"#090704",fontSize:23},secondary:{height:48,borderRadius:10,borderWidth:1,borderColor:M.goldDeep,alignItems:"center",justifyContent:"center",marginTop:9},secondaryText:{color:M.goldSoft,fontSize:9,fontWeight:"900",letterSpacing:.7}});

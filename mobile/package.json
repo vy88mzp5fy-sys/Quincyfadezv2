@@ -10,7 +10,9 @@
     "web": "expo start --web",
     "build:preview": "eas build --profile preview --platform all",
     "build:ios": "eas build --profile preview --platform ios",
-    "build:android": "eas build --profile preview --platform android"
+    "build:android": "eas build --profile preview --platform android",
+    "build:ios:production": "eas build --profile production --platform ios",
+    "update:production": "eas update --channel production --environment production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
@@ -19,6 +21,7 @@
     "expo-constants": "~57.0.10",
     "expo-notifications": "~57.0.10",
     "expo-splash-screen": "~57.0.4",
+    "expo-updates": "~57.0.8",
     "react": "19.2.3",
     "react-native": "0.86.0"
   }

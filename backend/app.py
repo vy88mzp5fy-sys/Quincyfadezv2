@@ -25,5 +25,6 @@ async def client_auth_indexes():
     await db.client_sessions.create_index("expires_at", expireAfterSeconds=0)
     await db.push_devices.create_index("expo_push_token", unique=True)
     await db.push_devices.create_index("client_key")
+    await db.client_notification_preferences.create_index("client_key", unique=True)
     await db.waiting_list.create_index([("client_key", 1), ("status", 1)])
     await db.waiting_list.create_index([("service", 1), ("status", 1), ("created_at", 1)])

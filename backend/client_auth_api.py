@@ -23,6 +23,11 @@ class ClientLogin(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class ClientPasswordChange(BaseModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 def build_client_auth_router(db):
     router = APIRouter(prefix="/client", tags=["client-auth"])
     indexes_ready = False
@@ -189,6 +194,31 @@ def build_client_auth_router(db):
                 "email": user.get("email_normalized") or "",
             },
         }
+
+    @router.post("/change-password")
+    async def change_password(input: ClientPasswordChange, authorization: Optional[str] = Header(default=None)):
+        session, _ = await require_client(authorization)
+        user = await db.client_users.find_one({"id": session["client_user_id"]}, {"_id": 0})
+        if not user:
+            raise HTTPException(status_code=401, detail="Client account is unavailable.")
+        if not verify_password(input.current_password, user.get("password_salt", ""), user.get("password_hash", "")):
+            raise HTTPException(status_code=400, detail="Your current password is incorrect.")
+        if hmac.compare_digest(input.current_password, input.new_password):
+            raise HTTPException(status_code=400, detail="Choose a new password that is different from your current password.")
+        salt, derived = password_hash(input.new_password)
+        now = datetime.now(timezone.utc)
+        result = await db.client_users.update_one(
+            {"id": user["id"]},
+            {"$set": {"password_salt": salt, "password_hash": derived, "updated_at": now}},
+        )
+        if result.matched_count != 1:
+            raise HTTPException(status_code=409, detail="Your password could not be updated. Please try again.")
+        current_token = authorization.split(" ", 1)[1].strip()
+        await db.client_sessions.delete_many({
+            "client_user_id": user["id"],
+            "token_hash": {"$ne": hash_token(current_token)},
+        })
+        return {"changed": True}
 
     @router.post("/logout")
     async def logout(authorization: Optional[str] = Header(default=None)):

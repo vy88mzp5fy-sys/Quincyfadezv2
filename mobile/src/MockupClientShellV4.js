@@ -9,6 +9,9 @@ import MockupServicesScreenV2 from"./MockupServicesScreenV2";
 import MockupProfileScreenV2 from"./MockupProfileScreenV2";
 import MockupAccountScreenV2 from"./MockupAccountScreenV2";
 import WaitingListScreen from"./WaitingListScreen";
+import PersonalInformationScreen from"./PersonalInformationScreen";
+import ChangePasswordScreen from"./ChangePasswordScreen";
+import ClientNotificationsScreen from"./ClientNotificationsScreen";
 import AdminPremiumShell from"./AdminPremiumShell";
 import{M}from"./MockupTheme";
 
@@ -33,7 +36,10 @@ export default function MockupClientShellV4(){
  else if(screen==="waiting")body=<WaitingListScreen onBack={()=>setScreen("home")}/>;
  else if(screen==="reviews")body=<MockupReviewsScreenV2 onBack={()=>setScreen("home")}/>;
  else if(screen==="services")body=<MockupServicesScreenV2 onBack={()=>setScreen("home")} onBook={sv=>go("booking",sv)}/>;
- else if(screen==="more")body=<MockupProfileScreenV2 onBack={()=>setScreen("home")} go={go}/>;
+ else if(screen==="more")body=<MockupProfileScreenV2 onBack={()=>setScreen("home")} go={go} onLogout={()=>setScreen("auth")}/>;
+ else if(screen==="personal")body=<PersonalInformationScreen onBack={()=>setScreen("more")}/>;
+ else if(screen==="changePassword")body=<ChangePasswordScreen onBack={()=>setScreen("more")}/>;
+ else if(screen==="notifications")body=<ClientNotificationsScreen onBack={()=>setScreen("more")}/>;
  else if(screen==="account")body=<MockupAccountScreenV2 onBack={()=>setScreen("more")} onBookings={()=>setScreen("bookings")}/>;
  else if(screen==="admin")body=<AdminPremiumShell onExit={()=>setScreen("auth")}/>;
  else body=<MockupClientHomeV3 go={go}/>;

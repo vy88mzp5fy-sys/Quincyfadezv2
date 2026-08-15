@@ -1,4 +1,10 @@
-from notification_preferences import channel_enabled, normalize_automation, normalize_automations
+from notification_preferences import (
+    channel_enabled,
+    client_event_enabled,
+    normalize_automation,
+    normalize_automations,
+    normalize_client_preferences,
+)
 
 
 def test_legacy_push_channel_migrates_to_channel_map():
@@ -39,3 +45,26 @@ def test_disabled_automation_cannot_deliver():
         "automations": {"booking_confirmed": {"enabled": False, "channels": {"push": True}}},
     }
     assert channel_enabled(settings, "booking_confirmed", "push") is False
+
+
+def test_client_notification_preferences_default_on():
+    preferences = normalize_client_preferences({})
+    assert preferences == {
+        "confirmations": True,
+        "reminders": True,
+        "reschedule": True,
+        "waitlist": True,
+        "reviews": True,
+    }
+
+
+def test_client_can_disable_specific_notification_category():
+    preferences = normalize_client_preferences({"reminders": False, "reviews": False})
+    assert client_event_enabled(preferences, "booking_reminder") is False
+    assert client_event_enabled(preferences, "rebook_reminder") is False
+    assert client_event_enabled(preferences, "leave_a_review") is False
+    assert client_event_enabled(preferences, "booking_confirmed") is True
+
+
+def test_unknown_event_is_not_suppressed():
+    assert client_event_enabled({"confirmations": False}, "push_test") is True

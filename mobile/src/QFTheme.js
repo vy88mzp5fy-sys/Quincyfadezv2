@@ -1,65 +1,57 @@
 import React from "react";
 import {Pressable,StyleSheet,Text,View} from "react-native";
 
-// QuincyFadez 2026 product system.
-// Compatibility aliases keep the existing app engine working while the visual language moves away from marble/gold.
+// QuincyFadez clean luxury product system.
+// Simple black/charcoal surfaces with warm neutral text and restrained gold accents.
 export const M={
-  bg:"#080B10",
-  bg2:"#0B1017",
-  panel:"#111722",
-  panel2:"#151C28",
-  panel3:"#1A2230",
-  accent:"#A9B8FF",
-  accentSoft:"#CBD2FF",
-  accentBright:"#EEF0FF",
-  accentDeep:"#7E91DA",
-  accentDark:"#39466F",
-  gold:"#A9B8FF",
-  goldSoft:"#CBD2FF",
-  goldBright:"#EEF0FF",
-  goldDeep:"#7E91DA",
-  goldDark:"#39466F",
-  text:"#F8F9FB",
-  text2:"#D8DEE8",
-  muted:"#8C98A8",
-  muted2:"#5D6877",
-  border:"#273142",
-  borderSoft:"#1C2431",
-  green:"#6EE7BE",
-  greenBg:"#0D241D",
-  amber:"#F1C77A",
-  amberBg:"#2A2112",
-  red:"#FF8E96",
-  redBg:"#2A1317",
-  black:"#080B10",
-  white:"#F8F9FB"
+  bg:"#090909",
+  bg2:"#0D0D0D",
+  panel:"#141414",
+  panel2:"#1A1A1A",
+  panel3:"#202020",
+  accent:"#D6B75C",
+  accentSoft:"#E4CC83",
+  accentBright:"#F2E3AF",
+  accentDeep:"#B89843",
+  accentDark:"#6B5728",
+  gold:"#D6B75C",
+  goldSoft:"#E4CC83",
+  goldBright:"#F2E3AF",
+  goldDeep:"#B89843",
+  goldDark:"#6B5728",
+  text:"#F4F1EA",
+  text2:"#D9D5CC",
+  muted:"#AAA59B",
+  muted2:"#77736C",
+  border:"#303030",
+  borderSoft:"#242424",
+  green:"#8FC6A6",
+  greenBg:"#15221A",
+  amber:"#D6B75C",
+  amberBg:"#2A2415",
+  red:"#D98D86",
+  redBg:"#2A1716",
+  black:"#090909",
+  white:"#F4F1EA"
 };
 
 export const shadow={
   shadowColor:"#000",
-  shadowOpacity:.30,
-  shadowRadius:18,
-  shadowOffset:{width:0,height:8},
-  elevation:5
+  shadowOpacity:.22,
+  shadowRadius:14,
+  shadowOffset:{width:0,height:6},
+  elevation:3
 };
 export const cardShadow={
   shadowColor:"#000",
-  shadowOpacity:.24,
-  shadowRadius:16,
-  shadowOffset:{width:0,height:7},
-  elevation:3
+  shadowOpacity:.16,
+  shadowRadius:10,
+  shadowOffset:{width:0,height:4},
+  elevation:2
 };
 
 export function Marble({children,style}){
-  return <View style={[s.stage,style]}>
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[s.aura,s.auraTop]}/>
-      <View style={[s.aura,s.auraSide]}/>
-      <View style={[s.aura,s.auraBottom]}/>
-      <View style={s.hairline}/>
-    </View>
-    {children}
-  </View>;
+  return <View style={[s.stage,style]}>{children}</View>;
 }
 
 export function BrandLogo({size=72,compact=false}){
@@ -97,27 +89,22 @@ export function StatusDot({tone="accent"}){const c=tone==="good"?M.green:tone===
 
 const s=StyleSheet.create({
   stage:{flex:1,backgroundColor:M.bg,overflow:"hidden"},
-  aura:{position:"absolute",borderRadius:999},
-  auraTop:{width:440,height:440,top:-300,right:-220,backgroundColor:"rgba(128,149,255,.09)"},
-  auraSide:{width:360,height:360,top:300,left:-300,backgroundColor:"rgba(110,231,190,.035)"},
-  auraBottom:{width:520,height:520,bottom:-410,right:-180,backgroundColor:"rgba(203,210,255,.045)"},
-  hairline:{position:"absolute",left:24,right:24,top:112,height:1,backgroundColor:"rgba(255,255,255,.025)"},
-  logo:{borderWidth:1,borderColor:"rgba(203,210,255,.38)",backgroundColor:"rgba(16,22,32,.95)",alignItems:"center",justifyContent:"center",...cardShadow},
-  logoInner:{borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:"#0C1119",alignItems:"center",justifyContent:"center"},
+  logo:{borderWidth:1,borderColor:"rgba(214,183,92,.34)",backgroundColor:M.panel,alignItems:"center",justifyContent:"center",...cardShadow},
+  logoInner:{borderWidth:1,borderColor:"rgba(255,255,255,.06)",backgroundColor:"#101010",alignItems:"center",justifyContent:"center"},
   logoText:{color:M.text,fontWeight:"800",letterSpacing:1},
   logoDot:{position:"absolute",right:4,bottom:7,width:8,height:8,borderRadius:4,backgroundColor:M.accent,borderWidth:2,borderColor:M.bg},
-  primary:{minHeight:58,borderRadius:17,backgroundColor:M.accent,paddingHorizontal:17,paddingVertical:11,flexDirection:"row",alignItems:"center",justifyContent:"space-between",...shadow},
-  pressed:{transform:[{scale:.992}],opacity:.94},
-  primaryText:{color:"#0B0F16",fontSize:13,fontWeight:"800",letterSpacing:.2},
-  primarySub:{color:"rgba(11,15,22,.68)",fontSize:9.5,fontWeight:"700",marginTop:3},
-  primaryIcon:{width:34,height:34,borderRadius:17,backgroundColor:"rgba(11,15,22,.10)",alignItems:"center",justifyContent:"center"},
-  primaryArrow:{color:"#0B0F16",fontSize:22,lineHeight:23},
+  primary:{minHeight:58,borderRadius:16,backgroundColor:M.accent,paddingHorizontal:17,paddingVertical:11,flexDirection:"row",alignItems:"center",justifyContent:"space-between",...shadow},
+  pressed:{transform:[{scale:.994}],opacity:.94},
+  primaryText:{color:"#11100D",fontSize:13,fontWeight:"800",letterSpacing:.2},
+  primarySub:{color:"rgba(17,16,13,.66)",fontSize:9.5,fontWeight:"700",marginTop:3},
+  primaryIcon:{width:34,height:34,borderRadius:17,backgroundColor:"rgba(17,16,13,.09)",alignItems:"center",justifyContent:"center"},
+  primaryArrow:{color:"#11100D",fontSize:22,lineHeight:23},
   disabled:{opacity:.36},
-  card:{borderRadius:20,borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:"rgba(17,23,34,.94)",...cardShadow},
-  back:{width:44,height:44,borderRadius:14,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:"rgba(17,23,34,.86)",alignItems:"center",justifyContent:"center"},
+  card:{borderRadius:18,borderWidth:1,borderColor:"rgba(255,255,255,.075)",backgroundColor:M.panel,...cardShadow},
+  back:{width:44,height:44,borderRadius:14,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:M.panel,alignItems:"center",justifyContent:"center"},
   backText:{color:M.text2,fontSize:31,fontWeight:"300",lineHeight:31,marginTop:-2},
-  pill:{borderRadius:999,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:"rgba(21,28,40,.90)",paddingHorizontal:11,paddingVertical:6,alignSelf:"flex-start"},
-  pillOn:{borderColor:"rgba(169,184,255,.55)",backgroundColor:"rgba(169,184,255,.14)"},
+  pill:{borderRadius:999,borderWidth:1,borderColor:"rgba(255,255,255,.08)",backgroundColor:M.panel2,paddingHorizontal:11,paddingVertical:6,alignSelf:"flex-start"},
+  pillOn:{borderColor:"rgba(214,183,92,.46)",backgroundColor:"rgba(214,183,92,.10)"},
   pillText:{color:M.muted,fontSize:9,fontWeight:"700",letterSpacing:.35},
   pillTextOn:{color:M.accentSoft},
   eyebrow:{color:M.accentSoft,fontSize:9,fontWeight:"800",letterSpacing:1.35},

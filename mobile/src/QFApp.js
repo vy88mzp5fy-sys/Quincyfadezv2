@@ -14,6 +14,7 @@ import ChangePasswordScreen from "./ChangePasswordScreen";
 import ClientNotificationsScreen from "./ClientNotificationsScreen";
 import AdminPremiumShell from "./AdminPremiumShell";
 import {BrandLogo,M,Marble} from "./QFTheme";
+import {primeAvailability} from "./QFAvailabilityCache";
 
 const SESSION="quincyfadez.clientSession",ADMIN="quincyfadez.adminToken";
 const NAV=[["home","Home","🏠"],["bookings","Bookings","📅"],["book","Book","✂️"],["reviews","Reviews","⭐"],["profile","Profile","👤"]];
@@ -26,8 +27,8 @@ function Boot(){return <Marble><View style={s.boot}><BrandLogo size={76}/><Text 
 
 export default function QFApp(){
   const[screen,setScreen]=useState("boot"),[service,setService]=useState("Haircut");
-  useEffect(()=>{AsyncStorage.multiGet([SESSION,ADMIN]).then(rows=>{const client=rows[0]?.[1],admin=rows[1]?.[1];if(client){try{const parsed=JSON.parse(client);if(parsed?.token)return setScreen("home")}catch(_){}}if(admin)return setScreen("admin");setScreen("auth")}).catch(()=>setScreen("auth"))},[]);
-  const go=(next,selected)=>{if(selected)setService(selected);setScreen(next)};
+  useEffect(()=>{primeAvailability(21).catch(()=>{});AsyncStorage.multiGet([SESSION,ADMIN]).then(rows=>{const client=rows[0]?.[1],admin=rows[1]?.[1];if(client){try{const parsed=JSON.parse(client);if(parsed?.token)return setScreen("home")}catch(_){}}if(admin)return setScreen("admin");setScreen("auth")}).catch(()=>setScreen("auth"))},[]);
+  const go=(next,selected)=>{if(selected)setService(selected);if(next==="book")primeAvailability(21).catch(()=>{});setScreen(next)};
   const logout=()=>setScreen("auth");
   if(screen==="boot")return <Boot/>;
   let body=null;
@@ -49,5 +50,5 @@ export default function QFApp(){
 }
 
 const s=StyleSheet.create({
-  shell:{flex:1,backgroundColor:M.bg},body:{flex:1},boot:{flex:1,alignItems:"center",justifyContent:"center"},bootBrand:{color:M.text,fontSize:13,fontWeight:"900",letterSpacing:3.2,marginTop:14},navSafe:{position:"absolute",left:12,right:12,bottom:8},nav:{height:78,borderRadius:24,borderWidth:1,borderColor:"rgba(255,255,255,.11)",backgroundColor:"rgba(20,22,25,.99)",flexDirection:"row",alignItems:"center",paddingHorizontal:6,shadowColor:"#000",shadowOpacity:.50,shadowRadius:22,shadowOffset:{width:0,height:12},elevation:9},navItem:{flex:1,height:68,alignItems:"center",justifyContent:"center"},navIconWrap:{width:38,height:33,borderRadius:12,alignItems:"center",justifyContent:"center"},navIconOn:{backgroundColor:"rgba(244,197,66,.15)",borderWidth:1,borderColor:"rgba(244,197,66,.18)"},bookWrap:{width:50,height:50,borderRadius:17,backgroundColor:M.accent,marginTop:-18,borderWidth:1,borderColor:M.accentBright,shadowColor:M.accent,shadowOpacity:.42,shadowRadius:16,shadowOffset:{width:0,height:7},elevation:8},bookWrapOn:{backgroundColor:M.accentSoft},navIcon:{fontSize:18},navIconActive:{transform:[{scale:1.05}]},bookIcon:{fontSize:20},navLabel:{color:M.muted,fontSize:7.8,fontWeight:"800",marginTop:4},navLabelOn:{color:M.accentSoft}
+  shell:{flex:1,backgroundColor:M.bg},body:{flex:1},boot:{flex:1,alignItems:"center",justifyContent:"center"},bootBrand:{color:M.text,fontSize:15,fontWeight:"900",letterSpacing:3.2,marginTop:14},navSafe:{position:"absolute",left:12,right:12,bottom:8},nav:{height:80,borderRadius:24,borderWidth:1,borderColor:"rgba(255,255,255,.11)",backgroundColor:"rgba(23,25,29,.99)",flexDirection:"row",alignItems:"center",paddingHorizontal:6,shadowColor:"#000",shadowOpacity:.50,shadowRadius:22,shadowOffset:{width:0,height:12},elevation:9},navItem:{flex:1,height:70,alignItems:"center",justifyContent:"center"},navIconWrap:{width:40,height:35,borderRadius:12,alignItems:"center",justifyContent:"center"},navIconOn:{backgroundColor:"#303239",borderWidth:1,borderColor:"rgba(255,255,255,.12)"},bookWrap:{width:52,height:52,borderRadius:18,backgroundColor:M.accent,marginTop:-18,borderWidth:1,borderColor:M.accentBright,shadowColor:"#8E6E25",shadowOpacity:.46,shadowRadius:16,shadowOffset:{width:0,height:7},elevation:8},bookWrapOn:{backgroundColor:M.accentSoft},navIcon:{fontSize:19},navIconActive:{transform:[{scale:1.05}]},bookIcon:{fontSize:21},navLabel:{color:M.muted,fontSize:9.5,fontWeight:"800",marginTop:4},navLabelOn:{color:M.text}
 });

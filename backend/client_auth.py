@@ -22,6 +22,11 @@ class ClientLogin(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class ClientPasswordChange(BaseModel):
+    current_password: str = Field(min_length=8, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 def build_client_auth_router(db):
     router = APIRouter(prefix="/client", tags=["client-auth"])
     session_hours = int(os.environ.get("CLIENT_SESSION_HOURS", "720"))
@@ -35,8 +40,11 @@ def build_client_auth_router(db):
         return salt.hex(), digest.hex()
 
     def _verify_password(password: str, salt_hex: str, expected_hex: str) -> bool:
-        _, actual = _hash_password(password, salt_hex)
-        return hmac.compare_digest(actual, expected_hex)
+        try:
+            _, actual = _hash_password(password, salt_hex)
+            return hmac.compare_digest(actual, expected_hex)
+        except Exception:
+            return False
 
     async def _create_session(client_key: str) -> tuple[str, str]:
         token = secrets.token_urlsafe(40)
@@ -50,16 +58,22 @@ def build_client_auth_router(db):
         })
         return token, expires_at.isoformat()
 
-    async def _require_client(authorization: Optional[str] = Header(default=None)):
+    async def _require_session(authorization: Optional[str]) -> tuple[str, dict]:
         if not authorization or not authorization.lower().startswith("bearer "):
             raise HTTPException(status_code=401, detail="Client authentication required.")
         token = authorization.split(" ", 1)[1].strip()
+        if not token:
+            raise HTTPException(status_code=401, detail="Client authentication required.")
         session = await db.client_sessions.find_one({
             "token_hash": _hash_token(token),
             "expires_at": {"$gt": datetime.now(timezone.utc)},
         }, {"_id": 0})
         if not session:
             raise HTTPException(status_code=401, detail="Your client session has expired. Please log in again.")
+        return token, session
+
+    async def _require_client(authorization: Optional[str] = Header(default=None)):
+        _, session = await _require_session(authorization)
         account = await db.client_accounts.find_one({"client_key": session["client_key"]}, {"_id": 0, "password_hash": 0, "password_salt": 0})
         if not account:
             raise HTTPException(status_code=401, detail="Client account not found.")
@@ -119,6 +133,30 @@ def build_client_auth_router(db):
     async def me(authorization: Optional[str] = Header(default=None)):
         account = await _require_client(authorization)
         return {"client_key": account["client_key"], "profile": _public_profile(account)}
+
+    @router.post("/change-password")
+    async def change_password(input: ClientPasswordChange, authorization: Optional[str] = Header(default=None)):
+        token, session = await _require_session(authorization)
+        account = await db.client_accounts.find_one({"client_key": session["client_key"]}, {"_id": 0})
+        if not account:
+            raise HTTPException(status_code=401, detail="Client account not found.")
+        if not _verify_password(input.current_password, account.get("password_salt", ""), account.get("password_hash", "")):
+            raise HTTPException(status_code=400, detail="Your current password is incorrect.")
+        if hmac.compare_digest(input.current_password, input.new_password):
+            raise HTTPException(status_code=400, detail="Choose a new password that is different from your current password.")
+        salt, password_hash = _hash_password(input.new_password)
+        now = datetime.now(timezone.utc)
+        result = await db.client_accounts.update_one(
+            {"client_key": account["client_key"]},
+            {"$set": {"password_salt": salt, "password_hash": password_hash, "updated_at": now}},
+        )
+        if result.matched_count != 1:
+            raise HTTPException(status_code=409, detail="Your password could not be updated. Please try again.")
+        await db.client_sessions.delete_many({
+            "client_key": account["client_key"],
+            "token_hash": {"$ne": _hash_token(token)},
+        })
+        return {"changed": True}
 
     @router.post("/logout")
     async def logout(authorization: Optional[str] = Header(default=None)):

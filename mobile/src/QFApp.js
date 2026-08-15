@@ -14,16 +14,23 @@ import ChangePasswordScreen from "./ChangePasswordScreen";
 import ClientNotificationsScreen from "./ClientNotificationsScreen";
 import AdminPremiumShell from "./AdminPremiumShell";
 import {BrandLogo,M,Marble} from "./QFTheme";
+import QFIcon from "./QFIcons";
 import {primeAvailability} from "./QFAvailabilityCache";
 
 const SESSION="quincyfadez.clientSession",ADMIN="quincyfadez.adminToken";
-const NAV=[["home","Home","🏠"],["bookings","Bookings","📅"],["book","Book","✂️"],["reviews","Reviews","⭐"],["profile","Profile","👤"]];
+const NAV=[
+  ["home","Home","home"],
+  ["bookings","Bookings","calendar"],
+  ["book","Book","scissors"],
+  ["reviews","Reviews","star"],
+  ["profile","Profile","profile"],
+];
 
 function BottomNav({screen,onChange}){
-  return <SafeAreaView pointerEvents="box-none" style={s.navSafe}><View style={s.nav}>{NAV.map(([key,label,icon])=>{const active=screen===key,book=key==="book";return <Pressable key={key} onPress={()=>onChange(key)} style={s.navItem}><View style={[s.navIconWrap,book&&s.bookWrap,active&&s.navIconOn,book&&active&&s.bookWrapOn]}><Text style={[s.navIcon,active&&s.navIconActive,book&&s.bookIcon]}>{icon}</Text></View><Text style={[s.navLabel,active&&s.navLabelOn]}>{label}</Text></Pressable>})}</View></SafeAreaView>;
+  return <SafeAreaView pointerEvents="box-none" style={s.navSafe}><View style={s.nav}>{NAV.map(([key,label,icon])=>{const active=screen===key;return <Pressable key={key} onPress={()=>onChange(key)} style={s.navItem}><View style={s.navIconWrap}><QFIcon name={icon} size={25} color={active?M.accent:M.muted}/></View><Text style={[s.navLabel,active&&s.navLabelOn]}>{label}</Text></Pressable>})}</View></SafeAreaView>;
 }
 
-function Boot(){return <Marble><View style={s.boot}><BrandLogo size={76}/><Text style={s.bootBrand}>QUINCYFADEZ</Text><ActivityIndicator color={M.accent} style={{marginTop:22}}/></View></Marble>}
+function Boot(){return <Marble><View style={s.boot}><BrandLogo size={82}/><Text style={s.bootBrand}>QUINCYFADEZ</Text><ActivityIndicator color={M.accent} style={{marginTop:24}}/></View></Marble>}
 
 export default function QFApp(){
   const[screen,setScreen]=useState("boot"),[service,setService]=useState("Haircut");
@@ -50,5 +57,11 @@ export default function QFApp(){
 }
 
 const s=StyleSheet.create({
-  shell:{flex:1,backgroundColor:M.bg},body:{flex:1},boot:{flex:1,alignItems:"center",justifyContent:"center"},bootBrand:{color:M.text,fontSize:15,fontWeight:"900",letterSpacing:3.2,marginTop:14},navSafe:{position:"absolute",left:12,right:12,bottom:8},nav:{height:80,borderRadius:24,borderWidth:1,borderColor:"rgba(255,255,255,.11)",backgroundColor:"rgba(23,25,29,.99)",flexDirection:"row",alignItems:"center",paddingHorizontal:6,shadowColor:"#000",shadowOpacity:.50,shadowRadius:22,shadowOffset:{width:0,height:12},elevation:9},navItem:{flex:1,height:70,alignItems:"center",justifyContent:"center"},navIconWrap:{width:40,height:35,borderRadius:12,alignItems:"center",justifyContent:"center"},navIconOn:{backgroundColor:"#303239",borderWidth:1,borderColor:"rgba(255,255,255,.12)"},bookWrap:{width:52,height:52,borderRadius:18,backgroundColor:M.accent,marginTop:-18,borderWidth:1,borderColor:M.accentBright,shadowColor:"#8E6E25",shadowOpacity:.46,shadowRadius:16,shadowOffset:{width:0,height:7},elevation:8},bookWrapOn:{backgroundColor:M.accentSoft},navIcon:{fontSize:19},navIconActive:{transform:[{scale:1.05}]},bookIcon:{fontSize:21},navLabel:{color:M.muted,fontSize:9.5,fontWeight:"800",marginTop:4},navLabelOn:{color:M.text}
+  shell:{flex:1,backgroundColor:M.bg},body:{flex:1},boot:{flex:1,alignItems:"center",justifyContent:"center"},bootBrand:{color:M.text,fontSize:17,fontWeight:"800",letterSpacing:3.4,marginTop:16},
+  navSafe:{position:"absolute",left:0,right:0,bottom:0,backgroundColor:"rgba(5,5,5,.985)",borderTopWidth:1,borderTopColor:"rgba(255,255,255,.10)"},
+  nav:{height:82,flexDirection:"row",alignItems:"center",paddingHorizontal:9},
+  navItem:{flex:1,height:72,alignItems:"center",justifyContent:"center"},
+  navIconWrap:{width:38,height:32,alignItems:"center",justifyContent:"center"},
+  navLabel:{color:M.muted,fontSize:11.5,fontWeight:"600",marginTop:5},
+  navLabelOn:{color:M.accent,fontWeight:"700"}
 });

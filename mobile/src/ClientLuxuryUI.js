@@ -1,12 +1,13 @@
 import React from "react";
 import {Pressable,StyleSheet,Text,View} from "react-native";
 import {M,cardShadow,LuxuryBackButton} from "./QFTheme";
+import QFIcon from "./QFIcons";
 
-export function ClientHeader({title,onBack,rightIcon="",onRight,subtitle}){
+export function ClientHeader({title,onBack,rightIcon="menu",onRight,subtitle}){
   return <View style={s.header}>
-    {onBack?<LuxuryBackButton onPress={onBack}/>:<View style={s.placeholder}/>} 
-    <View style={s.headText}><Text numberOfLines={1} style={s.title}>{title}</Text>{subtitle?<Text style={s.subtitle}>{subtitle}</Text>:null}</View>
-    {onRight?<Pressable onPress={onRight} style={({pressed})=>[s.rightButton,pressed&&{opacity:.65}]}><Text style={s.right}>{rightIcon||"•••"}</Text></Pressable>:<View style={s.placeholder}/>} 
+    <View style={s.side}>{onBack?<LuxuryBackButton onPress={onBack}/>:null}</View>
+    <View style={s.headText}><Text numberOfLines={1} style={s.title}>{title}</Text>{subtitle?<Text numberOfLines={2} style={s.subtitle}>{subtitle}</Text>:null}</View>
+    <View style={[s.side,{alignItems:"flex-end"}]}>{onRight?<Pressable onPress={onRight} style={({pressed})=>[s.rightButton,pressed&&{opacity:.6}]}>{typeof rightIcon==="string"?<QFIcon name={rightIcon} size={25}/>:rightIcon}</Pressable>:null}</View>
   </View>;
 }
 
@@ -15,20 +16,19 @@ export function ClientSection({title,action,onAction}){
 }
 
 export function ClientCard({children,style}){return <View style={[s.card,style]}>{children}</View>}
-export function MiniIcon({children}){return <View style={s.icon}><Text style={s.iconText}>{children}</Text></View>}
+export function MiniIcon({children,name}){return <View style={s.icon}>{name?<QFIcon name={name} size={24}/>:<Text style={s.iconText}>{children}</Text>}</View>}
 
 const s=StyleSheet.create({
-  header:{minHeight:94,flexDirection:"row",alignItems:"center",gap:13,paddingTop:6},
-  placeholder:{width:46,height:46},
-  headText:{flex:1},
-  title:{color:M.text,fontSize:28,fontWeight:"800",letterSpacing:-.55},
-  subtitle:{color:M.muted,fontSize:13,lineHeight:18,marginTop:5},
-  rightButton:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"rgba(255,255,255,.11)",backgroundColor:M.panel2,alignItems:"center",justifyContent:"center"},
-  right:{color:M.text2,fontSize:18,fontWeight:"700"},
-  section:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:28,marginBottom:11},
-  sectionTitle:{color:M.text2,fontSize:10.5,fontWeight:"900",letterSpacing:1.15},
-  sectionAction:{color:M.accentBright,fontSize:11.5,fontWeight:"800"},
-  card:{borderRadius:20,borderWidth:1,borderColor:"rgba(255,255,255,.105)",backgroundColor:M.panel2,...cardShadow},
-  icon:{width:46,height:46,borderRadius:15,borderWidth:1,borderColor:"rgba(255,255,255,.11)",backgroundColor:M.panel3,alignItems:"center",justifyContent:"center"},
-  iconText:{color:M.text2,fontSize:19,fontWeight:"800"}
+  header:{minHeight:112,flexDirection:"row",alignItems:"flex-start",paddingTop:13,paddingBottom:16},
+  side:{width:54,minHeight:48,justifyContent:"flex-start"},
+  headText:{flex:1,alignItems:"center",paddingTop:5},
+  title:{color:M.text,fontSize:31,fontWeight:"700",letterSpacing:-.5,textAlign:"center"},
+  subtitle:{color:M.muted,fontSize:14.5,lineHeight:20,marginTop:7,textAlign:"center",maxWidth:290},
+  rightButton:{width:46,height:46,alignItems:"center",justifyContent:"center"},
+  section:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:30,marginBottom:12},
+  sectionTitle:{color:M.text,fontSize:16,fontWeight:"800",letterSpacing:.2},
+  sectionAction:{color:M.accent,fontSize:14,fontWeight:"700"},
+  card:{borderRadius:18,borderWidth:1,borderColor:M.warmBorderSoft,backgroundColor:M.panel2,...cardShadow},
+  icon:{width:48,height:48,borderRadius:15,borderWidth:1,borderColor:M.border,backgroundColor:M.panel3,alignItems:"center",justifyContent:"center"},
+  iconText:{color:M.accent,fontSize:20,fontWeight:"700"}
 });

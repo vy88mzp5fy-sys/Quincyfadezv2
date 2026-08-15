@@ -2,7 +2,8 @@
   "expo": {
     "name": "QuincyFadez",
     "slug": "quincyfadez",
-    "version": "0.1.0",
+    "owner": "quincyfadez",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "quincyfadez",
     "userInterfaceStyle": "dark",
@@ -37,6 +38,11 @@
     },
     "android": {
       "package": "com.quincyfadez.app"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9bbf21b8-c05e-4e33-9002-37f05775cdd7"
+      }
     }
   }
 }

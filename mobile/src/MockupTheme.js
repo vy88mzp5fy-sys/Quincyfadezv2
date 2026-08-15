@@ -1,9 +1,11 @@
 import React from "react";
-import {Image,Pressable,StyleSheet,Text,View} from "react-native";
+import {Image,ImageBackground,Pressable,StyleSheet,Text,View} from "react-native";
 
 // QuincyFadez master visual system.
-// The approved Personal Information screen is the reference for every client/admin surface:
-// near-black marble, restrained champagne gold, soft borders, clean typography and minimal glow.
+// The approved Personal Information screen is the reference for every client/admin surface.
+// Its actual black-and-gold marble treatment is now used as the global app background.
+const MASTER_MARBLE=require("../assets/qf-marble-master.jpg");
+
 export const M={
   bg:"#050505",
   bg2:"#090909",
@@ -45,14 +47,15 @@ export const cardShadow={
 };
 
 export function Marble({children,style}){
-  return <View style={[s.marble,style]}>
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[s.glow,s.glow1]}/><View style={[s.glow,s.glow2]}/><View style={[s.glow,s.glow3]}/>
-      <View style={[s.vein,s.vein1]}/><View style={[s.vein,s.vein2]}/><View style={[s.vein,s.vein3]}/><View style={[s.vein,s.vein4]}/>
-      <View style={[s.hairline,s.hairline1]}/><View style={[s.hairline,s.hairline2]}/><View style={[s.hairline,s.hairline3]}/>
-    </View>
+  return <ImageBackground
+    source={MASTER_MARBLE}
+    resizeMode="cover"
+    style={[s.marble,style]}
+    imageStyle={s.marbleImage}
+  >
+    <View pointerEvents="none" style={s.marbleShade}/>
     {children}
-  </View>;
+  </ImageBackground>;
 }
 
 export function BrandLogo({size=94,compact=false}){
@@ -89,19 +92,8 @@ export function Eyebrow({children,style}){return <Text style={[s.eyebrow,style]}
 
 const s=StyleSheet.create({
   marble:{flex:1,backgroundColor:M.bg,overflow:"hidden"},
-  glow:{position:"absolute",borderRadius:999,backgroundColor:"rgba(214,189,122,.014)"},
-  glow1:{width:360,height:360,top:-150,right:-150},
-  glow2:{width:310,height:310,bottom:40,left:-190},
-  glow3:{width:230,height:230,top:350,left:80,backgroundColor:"rgba(255,255,255,.006)"},
-  vein:{position:"absolute",height:.7,backgroundColor:"rgba(214,189,122,.055)",borderRadius:2,shadowColor:M.gold,shadowOpacity:.035,shadowRadius:3},
-  vein1:{width:410,top:170,left:-145,transform:[{rotate:"-31deg"}]},
-  vein2:{width:355,top:445,right:-145,transform:[{rotate:"27deg"}]},
-  vein3:{width:465,bottom:220,left:-210,transform:[{rotate:"-17deg"}]},
-  vein4:{width:255,bottom:84,right:-84,transform:[{rotate:"42deg"}]},
-  hairline:{position:"absolute",height:.45,backgroundColor:"rgba(255,255,255,.019)"},
-  hairline1:{width:305,top:270,right:-92,transform:[{rotate:"-14deg"}]},
-  hairline2:{width:265,bottom:345,left:-82,transform:[{rotate:"34deg"}]},
-  hairline3:{width:235,bottom:125,right:10,transform:[{rotate:"-39deg"}]},
+  marbleImage:{opacity:1},
+  marbleShade:{...StyleSheet.absoluteFillObject,backgroundColor:"rgba(0,0,0,.035)"},
   logo:{borderWidth:1,borderColor:"rgba(214,189,122,.82)",backgroundColor:"#070707",alignItems:"center",justifyContent:"center",...shadow},
   logoRing:{borderWidth:1,borderColor:"rgba(228,207,149,.38)",overflow:"hidden",alignItems:"center",justifyContent:"center"},
   crown:{position:"absolute",top:-14,alignSelf:"center"},

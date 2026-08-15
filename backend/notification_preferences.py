@@ -46,6 +46,26 @@ AUTOMATION_DEFAULTS = {
     },
 }
 
+CLIENT_NOTIFICATION_DEFAULTS = {
+    "confirmations": True,
+    "reminders": True,
+    "reschedule": True,
+    "waitlist": True,
+    "reviews": True,
+}
+
+EVENT_TO_CLIENT_PREFERENCE = {
+    "booking_confirmed": "confirmations",
+    "booking_cancelled": "confirmations",
+    "booking_reminder": "reminders",
+    "rebook_reminder": "reminders",
+    "lapsed_client_winback": "reminders",
+    "rescheduled_booking": "reschedule",
+    "waiting_list_alert": "waitlist",
+    "leave_a_review": "reviews",
+    "google_review_booster": "reviews",
+}
+
 
 def normalize_channels(value: dict | None) -> dict:
     value = value or {}
@@ -91,3 +111,19 @@ def channel_enabled(settings: dict | None, automation_key: str, channel: str) ->
         return False
     automation = normalize_automation(automation_key, (settings.get("automations") or {}).get(automation_key))
     return bool(automation.get("enabled") and automation.get("channels", {}).get(channel, False))
+
+
+def normalize_client_preferences(values: dict | None) -> dict:
+    values = values or {}
+    return {
+        key: bool(values.get(key, default))
+        for key, default in CLIENT_NOTIFICATION_DEFAULTS.items()
+    }
+
+
+def client_event_enabled(values: dict | None, event: str | None) -> bool:
+    preference_key = EVENT_TO_CLIENT_PREFERENCE.get(str(event or ""))
+    if not preference_key:
+        return True
+    preferences = normalize_client_preferences(values)
+    return bool(preferences.get(preference_key, True))

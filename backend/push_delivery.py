@@ -3,6 +3,8 @@ from typing import Optional
 import asyncio
 import requests
 
+from notification_preferences import EVENT_TO_CLIENT_PREFERENCE, client_event_enabled
+
 
 EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send"
 
@@ -19,6 +21,25 @@ def build_push_message(expo_push_token: str, title: str, body: str, data: Option
 
 
 async def send_client_push(db, client_key: str, title: str, body: str, data: Optional[dict] = None) -> dict:
+    event = str((data or {}).get("event") or "")
+    if event in EVENT_TO_CLIENT_PREFERENCE:
+        saved = await db.client_notification_preferences.find_one(
+            {"client_key": client_key},
+            {"_id": 0, "client_key": 0, "updated_at": 0},
+        ) or {}
+        if not client_event_enabled(saved, event):
+            await db.notification_log.insert_one({
+                "client_key": client_key,
+                "kind": "push",
+                "status": "preference_disabled",
+                "event": event,
+                "title": title,
+                "body": body,
+                "device_count": 0,
+                "created_at": datetime.now(timezone.utc),
+            })
+            return {"sent": 0, "tickets": [], "suppressed": True, "reason": "client_preference"}
+
     devices = await db.push_devices.find(
         {"client_key": client_key, "enabled": True},
         {"_id": 0, "expo_push_token": 1, "platform": 1},
@@ -48,6 +69,7 @@ async def send_client_push(db, client_key: str, title: str, body: str, data: Opt
             "client_key": client_key,
             "kind": "push",
             "status": "transport_error",
+            "event": event or None,
             "title": title,
             "body": body,
             "device_count": len(messages),
@@ -61,6 +83,7 @@ async def send_client_push(db, client_key: str, title: str, body: str, data: Opt
         "client_key": client_key,
         "kind": "push",
         "status": status,
+        "event": event or None,
         "title": title,
         "body": body,
         "device_count": len(messages),

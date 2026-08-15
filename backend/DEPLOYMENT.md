@@ -5,10 +5,12 @@
 Deploy the backend with the working directory set to `backend` and the ASGI application set to:
 
 ```text
-app:app
+runtime:app
 ```
 
-`app.py` mounts the existing booking/admin API from `server.py` and adds the client account routes under `/api/client`.
+`runtime.py` exposes the production FastAPI app, including the existing booking/admin API, client account routes, waiting-list routes, push-notification routes, and the secured notification Cron endpoint.
+
+For Vercel, create a separate project from the same GitHub repository with the Root Directory set to `backend`. The project should use the FastAPI preset and the repository's `backend/vercel.json` Cron configuration.
 
 ## Required environment
 
@@ -19,9 +21,10 @@ CORS_ORIGINS=*
 ADMIN_PIN_SHA256=<sha256 owner PIN hash>
 STRIPE_SECRET_KEY=<Stripe secret key>
 STRIPE_PUBLISHABLE_KEY=<Stripe publishable key>
+CRON_SECRET=<long random secret>
+ADMIN_SESSION_HOURS=168
+CLIENT_SESSION_HOURS=720
 ```
-
-Optional settings include `ADMIN_SESSION_HOURS`, `CLIENT_SESSION_HOURS`, and the guarded payment capability flags already read by the API.
 
 ## Required public checks
 
@@ -49,4 +52,4 @@ Use the same HTTPS API base URL for both platforms:
 EXPO_PUBLIC_API_URL=https://<backend-host>
 ```
 
-The iOS and Android clients share the same booking, client-account, admin, and Stripe backend.
+The iOS and Android clients share the same booking, client-account, admin, waiting-list, notification, and Stripe backend.

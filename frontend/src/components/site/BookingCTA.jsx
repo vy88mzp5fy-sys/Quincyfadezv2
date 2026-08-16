@@ -1,4 +1,4 @@
-import { ArrowUpRight, MessageCircle } from "lucide-react";
+import { ArrowUpRight, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
 import { LINKS } from "@/data/site";
 import { Label } from "@/components/site/primitives";
@@ -10,9 +10,9 @@ export const BookingCTA = () => (
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_46%,rgba(111,156,255,0.13),transparent_30%)]" />
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_90%,rgba(214,189,122,0.08),transparent_30%)]" />
 
-    <div className="relative mx-auto flex max-w-[1400px] flex-col gap-10 px-5 py-24 sm:px-6 md:flex-row md:items-end md:justify-between md:px-10 md:py-36">
+    <div className="relative mx-auto grid max-w-[1400px] gap-10 px-5 py-24 sm:px-6 md:grid-cols-[1.2fr_0.8fr] md:items-end md:px-10 md:py-36">
       <div className="max-w-3xl">
-        <Label>Ready When You Are</Label>
+        <Label>Book Your Way</Label>
         <motion.h2
           initial={{ opacity: 0, y: 28 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -29,9 +29,9 @@ export const BookingCTA = () => (
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8, ease: EASE, delay: 0.12 }}
-          className="mt-6 max-w-lg text-sm font-light leading-relaxed text-zinc-400 md:text-[15px]"
+          className="mt-6 max-w-xl text-sm font-light leading-relaxed text-zinc-400 md:text-[15px]"
         >
-          Choose Your Service, Pick A Time That Works For You, And Secure Your Appointment In Just A Few Taps.
+          Book Online In Seconds, Or Open QuincyFadez In The Barbr App For An Easy Way To Book Again Whenever You Need Your Next Trim.
         </motion.p>
       </div>
 
@@ -40,26 +40,46 @@ export const BookingCTA = () => (
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.8, ease: EASE, delay: 0.18 }}
-        className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row md:justify-end"
+        className="grid w-full gap-3"
       >
         <a
           href={LINKS.booking}
           target="_blank"
           rel="noopener noreferrer"
-          className="qf-gold-button inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6bd7a]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+          className="qf-gold-button group inline-flex min-h-14 items-center justify-between gap-4 rounded-2xl px-6 py-5 font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6bd7a]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
-          Book Your Appointment
-          <ArrowUpRight size={14} />
+          <span className="flex flex-col items-start gap-1 text-left">
+            <span>Book Online</span>
+            <span className="font-sans text-[11px] font-normal normal-case tracking-normal opacity-70">
+              Continue Straight To QuincyFadez Booking
+            </span>
+          </span>
+          <ArrowUpRight size={16} className="shrink-0 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
+
         <a
-          href={LINKS.whatsapp}
+          href={LINKS.booking}
           target="_blank"
           rel="noopener noreferrer"
-          className="qf-glass inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-7 py-4 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="qf-glass group inline-flex min-h-14 items-center justify-between gap-4 rounded-2xl px-6 py-5 text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d6bd7a]/35 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6bd7a]/70"
         >
-          <MessageCircle size={14} />
-          WhatsApp Me
+          <span className="flex items-center gap-4">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#d6bd7a]/25 bg-[#d6bd7a]/10 text-[#e6cf91]">
+              <Smartphone size={18} />
+            </span>
+            <span className="flex flex-col items-start gap-1 text-left">
+              <span className="font-mono text-[10px] uppercase tracking-[0.2em]">Download App To Book</span>
+              <span className="font-sans text-[11px] font-normal text-zinc-400">
+                Open QuincyFadez In Barbr
+              </span>
+            </span>
+          </span>
+          <ArrowUpRight size={16} className="shrink-0 text-[#e6cf91] transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
+
+        <p className="px-1 pt-1 font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-500">
+          Both Options Take You To The Official QuincyFadez Barbr Page
+        </p>
       </motion.div>
     </div>
   </section>

@@ -7,6 +7,7 @@ import { TrustStrip } from "@/components/site/TrustStrip";
 import { AboutManifesto } from "@/components/site/AboutManifesto";
 import { WorkGallery } from "@/components/site/WorkGallery";
 import { ServicesMenu } from "@/components/site/ServicesMenu";
+import { BookingCTA } from "@/components/site/BookingCTA";
 import { GoogleReviews } from "@/components/site/GoogleReviews";
 import { HoursAndLocation } from "@/components/site/HoursAndLocation";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -84,6 +85,7 @@ function App() {
         <TrustStrip />
         <WorkGallery />
         <ServicesMenu />
+        <BookingCTA />
         <AboutManifesto />
         <GoogleReviews />
         <HoursAndLocation />

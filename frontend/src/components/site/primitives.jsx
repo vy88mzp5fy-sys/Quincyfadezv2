@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from "framer-motion";
+import { LINKS } from "@/data/site";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -66,7 +67,7 @@ export const BookButton = ({
   dark = false,
 }) => (
   <a
-    href="https://www.barbr.me/quincyfadez"
+    href={LINKS.booking}
     target="_blank"
     rel="noopener noreferrer"
     data-testid={testid}

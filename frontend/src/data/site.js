@@ -1,5 +1,5 @@
 export const LINKS = {
-  booking: "https://www.barbr.me/quincyfadez",
+  booking: "https://www.barbr.app/quincyfadez",
   instagram: "https://www.instagram.com/QuincyFadez",
   whatsapp: "https://wa.me/447490194682",
   directions:

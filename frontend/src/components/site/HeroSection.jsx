@@ -157,13 +157,11 @@ export const HeroSection = () => {
           </div>
 
           <div className="flex w-full flex-col items-start gap-3 sm:w-auto sm:items-end">
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-start">
               <BookButton
-                className="qf-gold-button min-h-12 w-full px-8 sm:w-auto"
+                className="min-h-12 w-full px-8 sm:w-auto"
                 testid="hero-book-btn"
-              >
-                Book Your Appointment
-              </BookButton>
+              />
               <a
                 href="#work"
                 className="qf-glass inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-7 font-mono text-[10px] uppercase tracking-[0.2em] text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/75 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:w-auto"

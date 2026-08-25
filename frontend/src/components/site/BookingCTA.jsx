@@ -31,7 +31,7 @@ export const BookingCTA = () => (
           transition={{ duration: 0.8, ease: EASE, delay: 0.12 }}
           className="mt-6 max-w-xl text-sm font-light leading-relaxed text-zinc-400 md:text-[15px]"
         >
-          Book Online In Seconds, Or Open QuincyFadez In The Barbr App For An Easy Way To Book Again Whenever You Need Your Next Trim.
+          Book Straight From The Website, Or Download The Barbr App For An Easy Way To Manage And Rebook Your QuincyFadez Appointments.
         </motion.p>
       </div>
 
@@ -49,16 +49,16 @@ export const BookingCTA = () => (
           className="qf-gold-button group inline-flex min-h-14 items-center justify-between gap-4 rounded-2xl px-6 py-5 font-mono text-[10px] uppercase tracking-[0.2em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6bd7a]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
           <span className="flex flex-col items-start gap-1 text-left">
-            <span>Book Online</span>
+            <span>Book Appointment Online</span>
             <span className="font-sans text-[11px] font-normal normal-case tracking-normal opacity-70">
-              Continue Straight To QuincyFadez Booking
+              Continue Straight To Online Booking
             </span>
           </span>
           <ArrowUpRight size={16} className="shrink-0 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
 
         <a
-          href={LINKS.booking}
+          href={LINKS.appBooking}
           target="_blank"
           rel="noopener noreferrer"
           className="qf-glass group inline-flex min-h-14 items-center justify-between gap-4 rounded-2xl px-6 py-5 text-white transition-all duration-300 hover:-translate-y-0.5 hover:border-[#d6bd7a]/35 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6bd7a]/70"
@@ -70,7 +70,7 @@ export const BookingCTA = () => (
             <span className="flex flex-col items-start gap-1 text-left">
               <span className="font-mono text-[10px] uppercase tracking-[0.2em]">Download App To Book</span>
               <span className="font-sans text-[11px] font-normal text-zinc-400">
-                Open QuincyFadez In Barbr
+                Open QuincyFadez In The Barbr App
               </span>
             </span>
           </span>
@@ -78,7 +78,7 @@ export const BookingCTA = () => (
         </a>
 
         <p className="px-1 pt-1 font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-500">
-          Both Options Take You To The Official QuincyFadez Barbr Page
+          Choose Online Booking Or The Barbr App — Whichever Is Easier For You
         </p>
       </motion.div>
     </div>

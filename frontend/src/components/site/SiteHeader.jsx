@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, Smartphone, X } from "lucide-react";
 import { LINKS } from "@/data/site";
 
 const NAV = [
@@ -84,7 +84,7 @@ export const SiteHeader = () => {
           : "bg-gradient-to-b from-black/35 to-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-[1480px] items-center justify-between px-5 py-4 sm:px-7 md:px-10 md:py-5 lg:px-12">
+      <div className="mx-auto flex max-w-[1480px] items-center justify-between px-5 py-4 sm:px-7 md:px-10 md:py-4 lg:px-12">
         <a
           href="#top"
           onClick={closeMenu}
@@ -115,16 +115,28 @@ export const SiteHeader = () => {
         </nav>
 
         <div className="flex items-center gap-2">
-          <a
-            href={LINKS.booking}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
-            data-testid="header-book-btn"
-            className="qf-gold-button hidden rounded-full px-5 py-2.5 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black sm:inline-flex"
-          >
-            Book Now
-          </a>
+          <div className="hidden flex-col gap-1.5 sm:flex">
+            <a
+              href={LINKS.booking}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Book QuincyFadez Appointment Online (Opens In A New Tab)"
+              data-testid="header-book-btn"
+              className="qf-gold-button inline-flex min-h-9 items-center justify-center rounded-full px-5 py-2 font-mono text-[9px] uppercase tracking-[0.18em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              Book Appointment Online
+            </a>
+            <a
+              href={LINKS.appBooking}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download The Barbr App To Book QuincyFadez (Opens In A New Tab)"
+              className="qf-glass inline-flex min-h-8 items-center justify-center gap-1.5 rounded-full px-4 py-1.5 font-mono text-[8px] uppercase tracking-[0.15em] text-white transition hover:border-[#d6bd7a]/35 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70"
+            >
+              <Smartphone size={11} aria-hidden="true" />
+              Download App To Book
+            </a>
+          </div>
           <button
             ref={menuButtonRef}
             type="button"
@@ -144,7 +156,7 @@ export const SiteHeader = () => {
         ref={mobileNavRef}
         aria-hidden={!menuOpen}
         className={`overflow-hidden transition-[max-height,opacity] duration-500 lg:hidden motion-reduce:transition-none ${
-          menuOpen ? "max-h-[32rem] opacity-100" : "pointer-events-none max-h-0 opacity-0"
+          menuOpen ? "max-h-[36rem] opacity-100" : "pointer-events-none max-h-0 opacity-0"
         }`}
       >
         <nav className="border-t border-white/10 bg-[#070707]/96 px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur-2xl" aria-label="Mobile Navigation">
@@ -160,17 +172,31 @@ export const SiteHeader = () => {
               <span className="qf-gold" aria-hidden="true">↗</span>
             </a>
           ))}
-          <a
-            href={LINKS.booking}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Book QuincyFadez Appointment (Opens In A New Tab)"
-            onClick={closeMenu}
-            tabIndex={menuOpen ? 0 : -1}
-            className="qf-gold-button mt-5 flex w-full items-center justify-center rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-          >
-            Book Your Appointment
-          </a>
+          <div className="mt-5 grid gap-2">
+            <a
+              href={LINKS.booking}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Book QuincyFadez Appointment Online (Opens In A New Tab)"
+              onClick={closeMenu}
+              tabIndex={menuOpen ? 0 : -1}
+              className="qf-gold-button flex w-full items-center justify-center rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.2em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+            >
+              Book Appointment Online
+            </a>
+            <a
+              href={LINKS.appBooking}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download The Barbr App To Book QuincyFadez (Opens In A New Tab)"
+              onClick={closeMenu}
+              tabIndex={menuOpen ? 0 : -1}
+              className="qf-glass flex w-full items-center justify-center gap-2 rounded-full py-4 font-mono text-[10px] uppercase tracking-[0.18em] text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--qf-gold)]/70"
+            >
+              <Smartphone size={14} aria-hidden="true" />
+              Download App To Book
+            </a>
+          </div>
         </nav>
       </div>
     </header>

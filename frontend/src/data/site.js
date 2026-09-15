@@ -1,3 +1,5 @@
+import { HERO_VIDEO_SRC } from "./heroVideo";
+
 export const LINKS = {
   booking: "https://barbr.me/quincyfadez",
   appBooking: "https://www.barbr.app/quincyfadez",
@@ -23,7 +25,10 @@ const mediaFromId = (id) => ({
   video: `${CDN}/${id}/play_720p.mp4`,
 });
 
-export const HERO_MEDIA = mediaFromId(MEDIA_IDS[0]);
+export const HERO_MEDIA = {
+  ...mediaFromId(MEDIA_IDS[0]),
+  video: HERO_VIDEO_SRC,
+};
 
 export const GALLERY = [
   {

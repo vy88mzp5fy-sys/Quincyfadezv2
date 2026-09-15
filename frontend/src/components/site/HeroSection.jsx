@@ -3,6 +3,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion
 import { ArrowUpRight } from "lucide-react";
 import { BookButton } from "@/components/site/primitives";
 import { HERO_MEDIA } from "@/data/site";
+import { HERO_VIDEO_SRC } from "@/data/heroVideo";
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -110,7 +111,7 @@ export const HeroSection = () => {
               aria-hidden="true"
               className={`h-full w-full object-cover object-center ${videoBlocked ? "opacity-0" : "opacity-100"}`}
             >
-              <source src={HERO_MEDIA.video} type="video/mp4" />
+              <source src={HERO_VIDEO_SRC} type="video/mp4" />
             </video>
             {videoBlocked && (
               <img
